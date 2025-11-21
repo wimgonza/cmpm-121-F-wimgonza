@@ -10,7 +10,6 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@deno/vite-plugin": "^1.0.5",
     "@types/react": "^19.2.6",
     "@types/three": "^0.181.0",
     "@vitejs/plugin-react": "^5.1.1",

@@ -2,16 +2,16 @@
 
 ### Project Structure
 
-cmpm-121-F-app/
-├── src/
-│ ├── components/
-│ │ └── SimplePhysics.tsx # Three.js + Ammo.js demo component
-│ ├── App.tsx # Main application with React + Three.js integration
-│ ├── main.tsx # Application entry point
-│ └── vite-env.d.ts # TypeScript definitions
-├── deno.json # Deno configuration with dependencies
-├── vite.config.ts # Vite build configuration
-└── tsconfig.json # TypeScript configuration
+- **cmpm-121-F-app/**
+    - **src/**
+        - `App.tsx`: Main application with React + Three.js integration
+        - `main.tsx`: Application entry point
+        - `vite-env.d.ts`: TypeScript definitions
+        - **components/**
+            - `SimplePhysics.tsx`: # Three.js + Ammo.js demo components
+    - `deno.json`: Deno configuration with dependencies
+    - `vite.config.ts`: Vite build configuration
+    - `tsconfig.json`: TypeScript configuration
 
 ### Dependencies
 

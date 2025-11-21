@@ -1,20 +1,13 @@
 {
   "tasks": {
-    "dev": "deno run -A --node-modules-dir npm:vite",
-    "build": "deno run -A --node-modules-dir npm:vite build",
-    "preview": "deno run -A --node-modules-dir npm:vite preview"
+    "dev": "deno run -A npm:vite",
+    "build": "deno run -A npm:vite build",
+    "preview": "deno run -A npm:vite preview"
   },
   "compilerOptions": {
     "lib": ["dom", "dom.iterable", "esnext"],
-    "jsx": "react-jsx"
+    "jsx": "react-jsx",
+    "strict": true
   },
-  "imports": {
-    "@oak/oak": "jsr:@oak/oak@^17.1.6",
-    "@tajpouria/cors": "jsr:@tajpouria/cors@^1.2.1",
-    "react": "npm:react@^19.2.0",
-    "react-dom": "npm:react-dom@^19.2.0",
-    "three": "npm:three@^0.169.0",
-    "@types/three": "npm:@types/three@^0.169.0",
-    "ammo.js": "npm:ammo.js@^0.0.10"
-  }
+  "nodeModulesDir": "auto"
 }
