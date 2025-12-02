@@ -1,24 +1,23 @@
-# Dev Log 11/21/25
+# Dev Log 12/1/25
 
 ## How we satisfied the software requirements
-1. It is built using a platform (i.e. engine, framework, language) that does not already provide support for 3D rendering and physics simulation.
-    - The platform we are using is Typescript and Vite which does not have 3D rendering and physics support natively.
-2. It uses a third-party 3D rendering library.
-    - Three.js provides a flexible WebGL framework that fully supports 3D environments.
-3. It uses a third-party physics simulation library.
-    - We are using Cannon.es.  
-4. The playable prototype presents the player with a simple physics-based puzzle.
-    - The simple physics-based puzzle is a portal-style puzzle requiring the block to be placed on a floor button. The Dynamic block object has 5 kg mass.
-5. The player is able to exert some control over the simulation in a way that allows them to succeed or fail at the puzzle.
-    - There are mouse-based pickup and throw mechanics. The success for the puzzle is them pressing the button and proceeding. The failure for the puzzle is the button not being pressed.
-6. The game detects success or failure and reports this back to the player using the game's graphics.
-    - The button color will shift from red to green to indicate success. The button color will remain red which will signify failure.
-7. The codebase for the prototype must include some before-commit automation that helps developers.
-    - 
-8. The codebase for the prototype must include some post-push automation that helps developers
+1. The game uses the same 3D rendering and physics simulation identified by the team for F1 or suitable replacements that still satisfy the F1 requirements.
+    - The game has the same tech stack described in F1 with cannon and three. All F1 requirements remain satisfied.
+2. The game must allow the player to move between scenes (e.g. rooms)
+    - The player may move between rooms via keyboard controls and mouse movement.
+3. The game must allow the player to select specific objects in a scene for interaction (e.g. tapping an item to pick it up or examine it)
+    - The player may interact (press) buttons in order to obtain items or pick up a block and carry it to a portal.
+4. The game maintains an inventory system allowing the player to carry objects so that what happens in one scene has an impact on what is possible in another scene.
+    - The inventory system remains consistent throughout all room updates and displays the item.
+5. The game contains at least one physics-based puzzle that is relevant to the player's progress in the game.
+    - The player may click the buttons in the correct order and pick up a block to place in a portal.
+6. The player can succeed or fail at the physics-based puzzle on the basis of their skill and/or reasoning (rather than luck).
+    - The player may succeed by inputting the correct pattern and escaping. The player fails due to incorrect input of a pattern.
+7. Via play, the game can reach at least one conclusive ending.
+    - The player may escape or fail depending on gameplay.
 
 ## Reflection
-Our team's plan changed slightly since team formation. Our initial thought that wasn't reflected in our initial devlog that React.js, Three.js, and Ammo.js would be complex to combine so we scrapped the idea. We reconsidered using React.js and Ammo.js and instead went with Typescript, Vite, Three.js and Cannon-es.
+    - wip
 
 ## Introducing the team
 
