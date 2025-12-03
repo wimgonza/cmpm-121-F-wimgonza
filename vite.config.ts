@@ -2,6 +2,6 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react-swc';
 
 export default defineConfig({
-  base: '/CMPM-121-F/',
+  base: '/cmpm-121-F/',
   plugins: [react()],
 });
