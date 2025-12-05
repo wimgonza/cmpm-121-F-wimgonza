@@ -5,6 +5,7 @@ import * as CANNON from 'cannon-es';
 import { Text } from '@react-three/drei';
 import { useGameStore } from '../hooks/useGameStore';
 import { useKeyboard } from '../hooks/useKeyboard';
+import { useTheme } from '../hooks/useTheme';
 
 // ============================================================================
 // TYPES & INTERFACES
@@ -47,18 +48,22 @@ function Dice({ diceRef, initialPosition }: {
   diceRef: (group: THREE.Group | null) => void;
   initialPosition: [number, number, number];
 }) {
+  const { colors, isDarkMode } = useTheme();
+
   return (
     <group ref={diceRef} position={initialPosition}>
       {/* Dice cube body */}
       <mesh>
         <boxGeometry args={[DICE_SIZE, DICE_SIZE, DICE_SIZE]} />
-        <meshBasicMaterial color="#cc0000" />
+        <meshBasicMaterial color={colors.diceColor} />
       </mesh>
 
       {/* Dice edges */}
       <lineSegments>
         <edgesGeometry args={[new THREE.BoxGeometry(DICE_SIZE, DICE_SIZE, DICE_SIZE)]} />
-        <lineBasicMaterial color="#880000" />
+        <lineBasicMaterial 
+          color={isDarkMode ? "#aa0000" : "#880000"}
+        />
       </lineSegments>
 
       {/* Face numbers */}
@@ -81,6 +86,7 @@ export function DiceGame({ position, zoneSize }: DiceGameProps) {
   // --------------------------------------------------------------------------
   const { camera, gl } = useThree();
   const { keys, resetInteract } = useKeyboard();
+  const { isDarkMode } = useTheme();
   
   // PHYSICS & GAME STATE REFERENCES
   // --------------------------------------------------------------------------
@@ -460,6 +466,15 @@ export function DiceGame({ position, zoneSize }: DiceGameProps) {
       <mesh position={[position[0] - zoneSize[0] / 2, position[1] + 1, position[2]]}>
         <boxGeometry args={[0.05, 2, zoneSize[2]]} />
         <meshBasicMaterial color="#ff4444" transparent opacity={0.15} />
+      </mesh>
+
+      <mesh position={[position[0], position[1] + 0.01, position[2]]} rotation={[-Math.PI / 2, 0, 0]}>
+        <planeGeometry args={[zoneSize[0], zoneSize[2]]} />
+        <meshBasicMaterial 
+          color={isDarkMode ? "#ff8888" : "#ff6666"} 
+          transparent 
+          opacity={0.2} 
+        />
       </mesh>
 
       {/* Dice */}

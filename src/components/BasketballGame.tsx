@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
 import { useGameStore } from '../hooks/useGameStore';
 import { useKeyboard } from '../hooks/useKeyboard';
+import { useTheme } from '../hooks/useTheme'; // Add this import
 
 // ============================================================================
 // TYPES & INTERFACES
@@ -35,21 +36,30 @@ const GROUNDED_CHECK_TIME = 1;
 // HOOP COMPONENT
 // ----------------------------------------------------------------------------
 function Hoop({ position }: { position: [number, number, number] }) {
+  const { isDarkMode } = useTheme(); // Add theme hook
+
   return (
     <group position={position} rotation={[0, Math.PI, 0]}>
       {/* Backboard */}
       <mesh position={[0, HOOP_HEIGHT + 0.3, 0.1]}>
         <boxGeometry args={[BACKBOARD_WIDTH, BACKBOARD_HEIGHT, 0.05]} />
-        <meshBasicMaterial color="#ffffff" transparent opacity={0.8} />
+        <meshBasicMaterial 
+          color={isDarkMode ? "#444444" : "#ffffff"} // Theme-based color
+          transparent 
+          opacity={isDarkMode ? 0.9 : 0.8} 
+        />
       </mesh>
 
       {/* Backboard outline */}
       <lineSegments position={[0, HOOP_HEIGHT + 0.3, 0.12]}>
         <edgesGeometry args={[new THREE.BoxGeometry(BACKBOARD_WIDTH, BACKBOARD_HEIGHT, 0.05)]} />
-        <lineBasicMaterial color="#ff4444" linewidth={2} />
+        <lineBasicMaterial 
+          color={isDarkMode ? "#ff8888" : "#ff4444"} // Theme-based color
+          linewidth={2} 
+        />
       </lineSegments>
 
-      {/* Rim */}
+       {/* Rim */}
       <mesh position={[0, HOOP_HEIGHT, -0.3]} rotation={[Math.PI / 2, 0, 0]}>
         <torusGeometry args={[HOOP_RADIUS, 0.02, 16, 32]} />
         <meshBasicMaterial color="#ff6600" />
@@ -58,13 +68,18 @@ function Hoop({ position }: { position: [number, number, number] }) {
       {/* Pole */}
       <mesh position={[0, HOOP_HEIGHT / 2, 0.2]}>
         <cylinderGeometry args={[0.08, 0.08, HOOP_HEIGHT, 8]} />
-        <meshBasicMaterial color="#333333" />
+        <meshBasicMaterial color={isDarkMode ? "#555555" : "#333333"} /> {/* Theme-based color */}
       </mesh>
 
       {/* Net visualization */}
       <mesh position={[0, HOOP_HEIGHT - 0.3, -0.3]}>
         <cylinderGeometry args={[HOOP_RADIUS, HOOP_RADIUS * 0.7, 0.5, 16, 1, true]} />
-        <meshBasicMaterial color="#ffffff" transparent opacity={0.3} wireframe />
+        <meshBasicMaterial 
+          color={isDarkMode ? "#cccccc" : "#ffffff"} // Theme-based color
+          transparent 
+          opacity={isDarkMode ? 0.4 : 0.3} 
+          wireframe 
+        />
       </mesh>
     </group>
   );
@@ -94,6 +109,7 @@ export function BasketballGame({ position, zoneSize }: BasketballGameProps) {
   // --------------------------------------------------------------------------
   const { camera, gl } = useThree();
   const { keys, resetInteract } = useKeyboard();
+  const { isDarkMode } = useTheme(); // Add theme hook
 
   // GAME STORE STATE
   // --------------------------------------------------------------------------
@@ -616,25 +632,41 @@ export function BasketballGame({ position, zoneSize }: BasketballGameProps) {
   // ==========================================================================
   return (
     <group>
-      {/* Court Boundaries (Visual) */}
+      {/* Court Boundaries (Visual) - Updated with theme colors */}
       <mesh position={[position[0], position[1] + 4, position[2] - zoneSize[2] / 2]}>
         <boxGeometry args={[zoneSize[0], 8, 0.05]} />
-        <meshBasicMaterial color="#44ffff" transparent opacity={0.15} />
+        <meshBasicMaterial 
+          color={isDarkMode ? "#88ffff" : "#44ffff"} // Theme-based color
+          transparent 
+          opacity={0.15} 
+        />
       </mesh>
 
       <mesh position={[position[0], position[1] + 4, position[2] + zoneSize[2] / 2]}>
         <boxGeometry args={[zoneSize[0], 8, 0.05]} />
-        <meshBasicMaterial color="#44ffff" transparent opacity={0.15} />
+        <meshBasicMaterial 
+          color={isDarkMode ? "#88ffff" : "#44ffff"} // Theme-based color
+          transparent 
+          opacity={0.15} 
+        />
       </mesh>
 
       <mesh position={[position[0] + zoneSize[0] / 2, position[1] + 4, position[2]]}>
         <boxGeometry args={[0.05, 8, zoneSize[2]]} />
-        <meshBasicMaterial color="#44ffff" transparent opacity={0.15} />
+        <meshBasicMaterial 
+          color={isDarkMode ? "#88ffff" : "#44ffff"} // Theme-based color
+          transparent 
+          opacity={0.15} 
+        />
       </mesh>
 
       <mesh position={[position[0] - zoneSize[0] / 2, position[1] + 4, position[2]]}>
         <boxGeometry args={[0.05, 8, zoneSize[2]]} />
-        <meshBasicMaterial color="#44ffff" transparent opacity={0.15} />
+        <meshBasicMaterial 
+          color={isDarkMode ? "#88ffff" : "#44ffff"} // Theme-based color
+          transparent 
+          opacity={0.15} 
+        />
       </mesh>
 
       {/* Hoop */}
@@ -646,25 +678,52 @@ export function BasketballGame({ position, zoneSize }: BasketballGameProps) {
       {/* Trajectory Line */}
       <line ref={(line) => { trajectoryLineRef.current = line as unknown as THREE.Line; }}>
         <bufferGeometry />
-        <lineBasicMaterial color="#ffff00" linewidth={2} transparent opacity={0.8} />
+        <lineBasicMaterial 
+          color={isDarkMode ? "#ffff88" : "#ffff00"} // Theme-based color
+          linewidth={2} 
+          transparent 
+          opacity={0.8} 
+        />
       </line>
 
       {/* Pickup Circle */}
       <mesh position={[position[0], position[1] + 0.01, position[2] + zoneSize[2] / 2 - 1.5]} rotation={[-Math.PI / 2, 0, 0]}>
         <ringGeometry args={[0.3, 0.4, 32]} />
-        <meshBasicMaterial color="#00ff00" transparent opacity={0.5} />
+        <meshBasicMaterial 
+          color={isDarkMode ? "#88ff88" : "#00ff00"} // Theme-based color
+          transparent 
+          opacity={0.5} 
+        />
       </mesh>
 
       {/* Three-point Line (Arc) */}
       <mesh position={[hoopPosition[0], position[1] + 0.01, hoopPosition[2] + 0.5]} rotation={[-Math.PI / 2, 0, Math.PI]}>
         <ringGeometry args={[3, 3.1, 32, 1, 0, Math.PI]} />
-        <meshBasicMaterial color="#ffffff" transparent opacity={0.3} />
+        <meshBasicMaterial 
+          color={isDarkMode ? "#cccccc" : "#ffffff"} // Theme-based color
+          transparent 
+          opacity={0.3} 
+        />
       </mesh>
 
       {/* Free-throw Line */}
       <mesh position={[hoopPosition[0], position[1] + 0.01, hoopPosition[2] + 7]} rotation={[-Math.PI / 2, 0, 0]}>
         <planeGeometry args={[3.6, 0.1]} />
-        <meshBasicMaterial color="#ffffff" transparent opacity={0.5} />
+        <meshBasicMaterial 
+          color={isDarkMode ? "#cccccc" : "#ffffff"} // Theme-based color
+          transparent 
+          opacity={0.5} 
+        />
+      </mesh>
+
+      {/* Court Floor (Optional) - Add if you want a visible court surface */}
+      <mesh position={[position[0], position[1] + 0.01, position[2]]} rotation={[-Math.PI / 2, 0, 0]}>
+        <planeGeometry args={[zoneSize[0], zoneSize[2]]} />
+        <meshBasicMaterial 
+          color={isDarkMode ? "#224444" : "#44aaff"} // Theme-based court color
+          transparent 
+          opacity={0.1} 
+        />
       </mesh>
     </group>
   );
