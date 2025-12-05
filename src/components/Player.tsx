@@ -6,6 +6,9 @@ import { useKeyboard } from '../hooks/useKeyboard';
 import { useGameStore } from '../hooks/useGameStore';
 import { PLAYER_CONFIG, ROOM_CONFIGS, PORTAL_CONFIG } from '../config/rooms';
 
+// ============================================================================
+// TYPES & INTERFACES
+// ============================================================================
 interface PlayerProps {
   playerBody: React.MutableRefObject<CANNON.Body | null>;
   physicsStep: (delta: number) => void;
@@ -18,20 +21,24 @@ interface DebugState {
   frameCount: number;
 }
 
-// First-person player controller handling movement, camera rotation, portals, and physics sync
+// ============================================================================
+// MAIN PLAYER COMPONENT
+// ============================================================================
 export function Player({ playerBody, physicsStep }: PlayerProps) {
+  
+  // HOOKS & EXTERNAL DEPENDENCIES
   const { camera, gl } = useThree();
   const { keys, resetInteract } = useKeyboard();
 
-  // Camera rotation state
+  // CAMERA ROTATION STATE
   const yawRef = useRef(0);
   const pitchRef = useRef(0);
 
-  // Movement state
+  // MOVEMENT STATE
   const velocityRef = useRef(new THREE.Vector3());
   const canJumpRef = useRef(true);
 
-  // Debug tracking state
+  // DEBUG TRACKING STATE
   const debugRef = useRef<DebugState>({
     prevYaw: 0,
     prevPitch: 0,
@@ -39,6 +46,8 @@ export function Player({ playerBody, physicsStep }: PlayerProps) {
     frameCount: 0,
   });
 
+  // GAME STORE STATE
+  // --------------------------------------------------------------------------
   const { 
     currentRoom, 
     setNearPortal, 
@@ -53,45 +62,61 @@ export function Player({ playerBody, physicsStep }: PlayerProps) {
     loadGame,
   } = useGameStore();
 
-  // Requests browser pointer lock to enable FPS-style camera control
+  // ==========================================================================
+  // INPUT & INTERACTION FUNCTIONS
+  // ==========================================================================
+
+  // POINTER LOCK CONTROL
+  // --------------------------------------------------------------------------
   const requestPointerLock = useCallback(() => {
     gl.domElement.requestPointerLock();
   }, [gl]);
 
-  // Handles all mouse movement input and updates yaw/pitch accordingly
+  // MOUSE MOVEMENT HANDLER
+  // --------------------------------------------------------------------------
   const handleMouseMove = useCallback((event: MouseEvent) => {
     if (document.pointerLockElement !== gl.domElement) return;
 
     const sensitivity = PLAYER_CONFIG.mouseSensitivity * 0.002;
 
+    // Threshold to ignore large jumps (e.g., screen edge wrapping)
     const THRESHOLD = 100;
     if (Math.abs(event.movementX) > THRESHOLD || Math.abs(event.movementY) > THRESHOLD) {
       return;
     }
 
+    // Yaw rotation (horizontal)
     yawRef.current -= event.movementX * sensitivity;
     while (yawRef.current > Math.PI) yawRef.current -= Math.PI * 2;
     while (yawRef.current < -Math.PI) yawRef.current += Math.PI * 2;
 
+    // Pitch rotation (vertical) with limits
     const maxPitch = Math.PI / 2 - 0.05;
     pitchRef.current -= event.movementY * sensitivity;
     pitchRef.current = Math.max(-maxPitch, Math.min(maxPitch, pitchRef.current));
   }, [gl]);
 
-  // Updates store when pointer lock state changes
+  // POINTER LOCK STATE HANDLER
+  // --------------------------------------------------------------------------
   const handlePointerLockChange = useCallback(() => {
     const locked = document.pointerLockElement === gl.domElement;
     setIsLocked(locked);
   }, [gl, setIsLocked]);
 
-  // Clicking the canvas initiates pointer lock if not already locked
+  // CANVAS CLICK HANDLER
+  // --------------------------------------------------------------------------
   const handleClick = useCallback(() => {
     if (document.pointerLockElement !== gl.domElement) {
       requestPointerLock();
     }
   }, [gl, requestPointerLock]);
 
-  // Registers mouse + pointer lock event listeners
+  // ==========================================================================
+  // USE EFFECTS
+  // ==========================================================================
+
+  // INPUT EVENT LISTENERS
+  // --------------------------------------------------------------------------
   useEffect(() => {
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('pointerlockchange', handlePointerLockChange);
@@ -104,12 +129,14 @@ export function Player({ playerBody, physicsStep }: PlayerProps) {
     };
   }, [handleMouseMove, handlePointerLockChange, handleClick, gl]);
 
-  // Allows saving/loading game state via keyboard (F5/F9)
+  // SAVE/LOAD KEYBOARD SHORTCUTS
+  // --------------------------------------------------------------------------
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const body = playerBody.current;
       if (!body) return;
 
+      // Save game (F5)
       if (e.code === 'F5') {
         e.preventDefault();
         saveGame({
@@ -119,6 +146,7 @@ export function Player({ playerBody, physicsStep }: PlayerProps) {
         });
       }
 
+      // Load game (F9)
       if (e.code === 'F9') {
         e.preventDefault();
         loadGame();
@@ -129,32 +157,38 @@ export function Player({ playerBody, physicsStep }: PlayerProps) {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [playerBody, saveGame, loadGame]);
 
-  // Handles player and camera repositioning when switching rooms
+  // ROOM TRANSITION HANDLER
+  // --------------------------------------------------------------------------
   useEffect(() => {
     const body = playerBody.current;
     const roomConfig = ROOM_CONFIGS[currentRoom];
     const spawnPos = roomConfig.spawnPosition || new THREE.Vector3(0, PLAYER_CONFIG.spawnHeight, 0);
 
+    // Reset physics body
     if (body) {
       body.position.set(spawnPos.x, spawnPos.y, spawnPos.z);
       body.velocity.set(0, 0, 0);
     }
 
+    // Reset camera position
     camera.position.set(
       spawnPos.x, 
       spawnPos.y + PLAYER_CONFIG.eyeHeight - PLAYER_CONFIG.spawnHeight, 
       spawnPos.z
     );
 
+    // Reset rotation
     yawRef.current = 0;
     pitchRef.current = 0;
 
+    // Reset debug tracking
     debugRef.current.prevYaw = 0;
     debugRef.current.prevPitch = 0;
     debugRef.current.prevQuaternion.identity();
   }, [currentRoom, playerBody, camera]);
 
-  // Teleports the player instantly to a stored teleport target
+  // TELEPORTATION HANDLER
+  // --------------------------------------------------------------------------
   useEffect(() => {
     if (!playerTeleportTarget) return;
 
@@ -177,35 +211,25 @@ export function Player({ playerBody, physicsStep }: PlayerProps) {
     setPlayerTeleportTarget(null);
   }, [playerTeleportTarget, playerBody, camera, setPlayerTeleportTarget]);
 
-  // Main per-frame update loop for physics, camera, and movement
+  // ==========================================================================
+  // GAME LOOP (useFrame)
+  // ==========================================================================
   useFrame((_, delta) => {
     const body = playerBody.current;
     if (!body || !isLocked) return;
 
+    // PHYSICS STEP
     physicsStep(delta);
 
+    // CAMERA ROTATION
     const debug = debugRef.current;
     debug.frameCount++;
 
     const euler = new THREE.Euler(pitchRef.current, yawRef.current, 0, 'YXZ');
     camera.quaternion.setFromEuler(euler);
 
-    const YAW_JUMP_THRESHOLD = 0.5;
-    const PITCH_JUMP_THRESHOLD = 0.3;
-
-    const yawDelta = Math.abs(yawRef.current - debug.prevYaw);
-    const pitchDelta = Math.abs(pitchRef.current - debug.prevPitch);
-
-    const adjustedYawDelta = Math.min(yawDelta, Math.PI * 2 - yawDelta);
-
-    if (adjustedYawDelta > YAW_JUMP_THRESHOLD || pitchDelta > PITCH_JUMP_THRESHOLD) {
-      // (Debug log removed)
-    }
-
-    debug.prevYaw = yawRef.current;
-    debug.prevPitch = pitchRef.current;
-    debug.prevQuaternion.copy(camera.quaternion);
-
+    // MOVEMENT CALCULATION
+    // ------------------------------------------------------------------------
     const forward = new THREE.Vector3(
       -Math.sin(yawRef.current),
       0,
@@ -224,14 +248,18 @@ export function Player({ playerBody, physicsStep }: PlayerProps) {
     const velocity = velocityRef.current;
     velocity.set(0, 0, 0);
 
+    // Apply movement based on keys
     if (keys.current.forward) velocity.add(forward.clone().multiplyScalar(speed));
     if (keys.current.backward) velocity.add(forward.clone().multiplyScalar(-speed));
     if (keys.current.left) velocity.add(right.clone().multiplyScalar(-speed));
     if (keys.current.right) velocity.add(right.clone().multiplyScalar(speed));
 
+    // Update physics body velocity (preserve Y for gravity/jumping)
     const currentYVelocity = body.velocity.y;
     body.velocity.set(velocity.x, currentYVelocity, velocity.z);
 
+    // JUMP MECHANICS
+    // ------------------------------------------------------------------------
     const isGrounded =
       Math.abs(body.velocity.y) < 0.5 &&
       body.position.y <= PLAYER_CONFIG.spawnHeight + 0.2;
@@ -244,12 +272,16 @@ export function Player({ playerBody, physicsStep }: PlayerProps) {
       canJumpRef.current = true;
     }
 
+    // CAMERA POSITION SYNC
+    // ------------------------------------------------------------------------
     camera.position.set(
       body.position.x,
       body.position.y + PLAYER_CONFIG.eyeHeight - PLAYER_CONFIG.spawnHeight,
       body.position.z
     );
 
+    // PORTAL DETECTION
+    // ------------------------------------------------------------------------
     const roomConfig = ROOM_CONFIGS[currentRoom];
     let foundPortal = null;
 
@@ -262,12 +294,14 @@ export function Player({ playerBody, physicsStep }: PlayerProps) {
     }
     setNearPortal(foundPortal);
 
+    // PORTAL INTERACTION
+    // ------------------------------------------------------------------------
     if (keys.current.interact && nearPortal) {
       resetInteract();
       teleportToRoom(nearPortal.targetRoom);
     }
   });
 
-  // Player renders no mesh; controls camera and physics only
-  return null;
+  // RENDER
+  return null; // Player is invisible, controls camera and physics only
 }

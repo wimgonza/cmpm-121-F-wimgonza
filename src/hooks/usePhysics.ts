@@ -2,25 +2,34 @@ import { useRef, useEffect } from 'react';
 import * as CANNON from 'cannon-es';
 import { PHYSICS_CONFIG, PLAYER_CONFIG } from '../config/rooms';
 
+// ============================================================================
+// PHYSICS HOOK
+// ============================================================================
 export function usePhysics() {
+  
+  // PHYSICS WORLD REFERENCES
   const worldRef = useRef<CANNON.World | null>(null);
   const playerBodyRef = useRef<CANNON.Body | null>(null);
   const groundMaterialRef = useRef<CANNON.Material | null>(null);
   const wallMaterialRef = useRef<CANNON.Material | null>(null);
   const bodiesRef = useRef<CANNON.Body[]>([]);
 
+  // ==========================================================================
+  // PHYSICS WORLD INITIALIZATION
+  // ==========================================================================
   useEffect(() => {
-    // create physics world
+  
+    // WORLD CREATION
     const world = new CANNON.World();
     world.gravity.set(0, PHYSICS_CONFIG.gravity, 0);
     world.broadphase = new CANNON.NaiveBroadphase();
     
-    // create materials
+    // MATERIAL CREATION
     const groundMaterial = new CANNON.Material('ground');
     const wallMaterial = new CANNON.Material('wall');
     const playerMaterial = new CANNON.Material('player');
 
-    // create contact materials
+    // CONTACT MATERIALS (PLAYER-GROUND)
     const playerGroundContact = new CANNON.ContactMaterial(
       playerMaterial,
       groundMaterial,
@@ -31,7 +40,7 @@ export function usePhysics() {
     );
     world.addContactMaterial(playerGroundContact);
 
-    // create contact materials
+    // CONTACT MATERIALS (PLAYER-WALL)
     const playerWallContact = new CANNON.ContactMaterial(
       playerMaterial,
       wallMaterial,
@@ -42,7 +51,7 @@ export function usePhysics() {
     );
     world.addContactMaterial(playerWallContact);
 
-    // create player body
+    // PLAYER BODY CREATION
     const playerShape = new CANNON.Sphere(PLAYER_CONFIG.radius);
     const playerBody = new CANNON.Body({
       mass: PLAYER_CONFIG.mass,
@@ -55,18 +64,24 @@ export function usePhysics() {
     });
     world.addBody(playerBody);
 
+    // STORE REFERENCES
     worldRef.current = world;
     playerBodyRef.current = playerBody;
     groundMaterialRef.current = groundMaterial;
     wallMaterialRef.current = wallMaterial;
 
+    // CLEANUP FUNCTION
     return () => {
-      // cleanup
       bodiesRef.current.forEach(body => world.removeBody(body));
       bodiesRef.current = [];
     };
   }, []);
 
+  // ==========================================================================
+  // PHYSICS WORLD ACTIONS
+  // ==========================================================================
+
+  // ADD BODY TO WORLD
   const addBody = (body: CANNON.Body) => {
     if (worldRef.current) {
       worldRef.current.addBody(body);
@@ -74,6 +89,7 @@ export function usePhysics() {
     }
   };
 
+  // REMOVE BODY FROM WORLD
   const removeBody = (body: CANNON.Body) => {
     if (worldRef.current) {
       worldRef.current.removeBody(body);
@@ -81,6 +97,7 @@ export function usePhysics() {
     }
   };
 
+  // CLEAR ALL BODIES (Except player)
   const clearBodies = () => {
     if (worldRef.current) {
       bodiesRef.current.forEach(body => worldRef.current!.removeBody(body));
@@ -88,12 +105,16 @@ export function usePhysics() {
     }
   };
 
+  // STEP PHYSICS SIMULATION
   const step = (delta: number) => {
     if (worldRef.current) {
       worldRef.current.step(1 / 60, delta, 3);
     }
   };
 
+  // ==========================================================================
+  // RETURN VALUES
+  // ==========================================================================
   return {
     world: worldRef,
     playerBody: playerBodyRef,
@@ -105,4 +126,3 @@ export function usePhysics() {
     step,
   };
 }
-

@@ -5,18 +5,27 @@ import type { Portal as PortalType } from '../types';
 import { PORTAL_CONFIG } from '../config/rooms';
 import { useGameStore } from '../hooks/useGameStore';
 
+// ============================================================================
+// TYPES & INTERFACES
+// ============================================================================
 interface PortalProps {
   portal: PortalType;
 }
 
-// Displays an animated glowing portal that activates when the player is nearby
+// ============================================================================
+// PORTAL COMPONENT
+// ============================================================================
 export function Portal({ portal }: PortalProps) {
+  // REFERENCES
   const glowRef = useRef<THREE.Mesh>(null);
-  const { nearPortal } = useGameStore();
   
+  // GAME STATE
+  const { nearPortal } = useGameStore();
   const isNear = nearPortal?.id === portal.id;
 
-  // Animates portal glow using a pulsing opacity effect
+  // ==========================================================================
+  // ANIMATION LOOP (useFrame)
+  // ==========================================================================
   useFrame((state) => {
     if (glowRef.current) {
       const pulse = 0.7 + Math.sin(state.clock.elapsedTime * 2) * 0.2;
@@ -25,34 +34,47 @@ export function Portal({ portal }: PortalProps) {
     }
   });
 
-  // Computes the portal’s facing direction based on wall placement
+  // ==========================================================================
+  // HELPER FUNCTIONS
+  // ==========================================================================
+
+  // PORTAL ROTATION CALCULATION
   const getRotation = () => {
     const { x, z } = portal.position;
+    
+    // Determine primary axis based on position
     if (Math.abs(z) > Math.abs(x)) {
-      return z < 0 ? 0 : Math.PI;
+      return z < 0 ? 0 : Math.PI;       // North/South walls
     }
-    return x > 0 ? -Math.PI / 2 : Math.PI / 2;
+    return x > 0 ? -Math.PI / 2 : Math.PI / 2; // East/West walls
   };
 
-  // Computes slight forward offset so the glowing panel sits in front of the wall
+  // GLOW OFFSET CALCULATION
   const getGlowOffset = (): [number, number, number] => {
     const { x, z } = portal.position;
-    const offset = 0.15;
+    const offset = 0.15; // Small forward offset from wall
+    
     if (Math.abs(z) > Math.abs(x)) {
-      return z < 0 ? [0, 0, offset] : [0, 0, -offset];
+      return z < 0 ? [0, 0, offset] : [0, 0, -offset]; // Z-axis walls
     }
-    return x > 0 ? [-offset, 0, 0] : [offset, 0, 0];
+    return x > 0 ? [-offset, 0, 0] : [offset, 0, 0];   // X-axis walls
   };
 
+  // COMPUTED VALUES
   const glowOffset = getGlowOffset();
 
+  // ==========================================================================
+  // RENDER
+  // ==========================================================================
   return (
     <group position={[portal.position.x, portal.position.y, portal.position.z]}>
+      {/* PORTAL FRAME */}
       <mesh rotation={[0, getRotation(), 0]}>
         <boxGeometry args={[PORTAL_CONFIG.width + 0.3, PORTAL_CONFIG.height + 0.2, 0.2]} />
         <meshBasicMaterial color="#111111" />
       </mesh>
 
+      {/* ANIMATED GLOW PANEL */}
       <mesh 
         ref={glowRef} 
         rotation={[0, getRotation(), 0]}

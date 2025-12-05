@@ -1,6 +1,9 @@
 import * as THREE from 'three';
 import type { RoomConfig, RoomType } from '../types';
 
+// ============================================================================
+// ROOM CONFIGURATIONS
+// ============================================================================
 export const ROOM_CONFIGS: Record<RoomType, RoomConfig> = {
   main: {
     id: 'main',
@@ -109,6 +112,9 @@ export const ROOM_CONFIGS: Record<RoomType, RoomConfig> = {
   },
 };
 
+// ============================================================================
+// MINIGAME ZONE CONFIGURATIONS
+// ============================================================================
 export const MINIGAME_ZONE_CONFIG = {
   minigame1: {
     position: [0, 0, -4] as [number, number, number],
@@ -128,29 +134,50 @@ export const MINIGAME_ZONE_CONFIG = {
   },
 };
 
+// ============================================================================
+// PLAYER CONFIGURATION
+// ============================================================================
 export const PLAYER_CONFIG = {
+  // Physical dimensions
   height: 1.8,
   radius: 0.4,
+  mass: 80,
+  
+  // Camera settings
+  eyeHeight: 2.5,
+  spawnHeight: 0.5,
+  
+  // Movement settings
   moveSpeed: 15,
   sprintMultiplier: 2,
   jumpForce: 8,
-  mass: 80,
-  eyeHeight: 2.5,
-  spawnHeight: 0.5,
+  
+  // Input settings
   mouseSensitivity: 0.5,
 };
 
+// ============================================================================
+// PHYSICS CONFIGURATION
+// ============================================================================
 export const PHYSICS_CONFIG = {
+  // World settings
   gravity: -20,
+  
+  // Material properties
   groundFriction: 0.5,
   wallFriction: 0,
   groundRestitution: 0,
   wallRestitution: 0,
 };
 
+// ============================================================================
+// PORTAL CONFIGURATION
+// ============================================================================
 export const PORTAL_CONFIG = {
+  // Dimensions
   width: 2,
   height: 3,
+  
+  // Interaction
   interactionDistance: 3,
 };
-

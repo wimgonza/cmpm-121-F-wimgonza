@@ -1,5 +1,8 @@
 import { useEffect, useRef, useCallback } from 'react';
 
+// ============================================================================
+// TYPES & INTERFACES
+// ============================================================================
 interface KeyState {
   forward: boolean;
   backward: boolean;
@@ -10,7 +13,11 @@ interface KeyState {
   interact: boolean;
 }
 
+// ============================================================================
+// KEYBOARD HOOK
+// ============================================================================
 export function useKeyboard() {
+  // KEY STATE REFERENCES
   const keys = useRef<KeyState>({
     forward: false,
     backward: false,
@@ -21,15 +28,27 @@ export function useKeyboard() {
     interact: false,
   });
 
+  // INTERACT KEY DEBOUNCE
   const interactPressed = useRef(false);
 
+  // ==========================================================================
+  // ACTION FUNCTIONS
+  // ==========================================================================
+
+  // RESET INTERACT KEY
   const resetInteract = useCallback(() => {
     keys.current.interact = false;
   }, []);
 
+  // ==========================================================================
+  // KEYBOARD EVENT LISTENERS
+  // ==========================================================================
   useEffect(() => {
+    // KEY DOWN HANDLER
+    // ------------------------------------------------------------------------
     const handleKeyDown = (e: KeyboardEvent) => {
       switch (e.code) {
+        // MOVEMENT KEYS
         case 'KeyW':
           keys.current.forward = true;
           break;
@@ -42,6 +61,8 @@ export function useKeyboard() {
         case 'KeyD':
           keys.current.right = true;
           break;
+        
+        // ACTION KEYS
         case 'Space':
           keys.current.jump = true;
           break;
@@ -49,6 +70,8 @@ export function useKeyboard() {
         case 'ShiftRight':
           keys.current.sprint = true;
           break;
+        
+        // INTERACTION KEY (E)
         case 'KeyE':
           if (!interactPressed.current) {
             keys.current.interact = true;
@@ -58,8 +81,11 @@ export function useKeyboard() {
       }
     };
 
+    // KEY UP HANDLER
+    // ------------------------------------------------------------------------
     const handleKeyUp = (e: KeyboardEvent) => {
       switch (e.code) {
+        // MOVEMENT KEYS
         case 'KeyW':
           keys.current.forward = false;
           break;
@@ -72,6 +98,8 @@ export function useKeyboard() {
         case 'KeyD':
           keys.current.right = false;
           break;
+        
+        // ACTION KEYS
         case 'Space':
           keys.current.jump = false;
           break;
@@ -79,6 +107,8 @@ export function useKeyboard() {
         case 'ShiftRight':
           keys.current.sprint = false;
           break;
+        
+        // INTERACTION KEY (E)
         case 'KeyE':
           keys.current.interact = false;
           interactPressed.current = false;
@@ -86,14 +116,17 @@ export function useKeyboard() {
       }
     };
 
+    // EVENT LISTENER SETUP
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
 
+    // CLEANUP
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
   }, []);
 
+  // RETURN VALUES
   return { keys, resetInteract };
 }

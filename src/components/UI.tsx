@@ -2,7 +2,12 @@ import { useState, useEffect } from 'react';
 import { useGameStore } from '../hooks/useGameStore';
 import { ROOM_CONFIGS } from '../config/rooms';
 
+// ============================================================================
+// UI COMPONENT
+// ============================================================================
 export function UI() {
+  // GAME STORE STATE
+  // --------------------------------------------------------------------------
   const { 
     currentRoom, 
     nearPortal, 
@@ -45,17 +50,30 @@ export function UI() {
     startSimonGame,
     exitSimonGame,
   } = useGameStore();
-  const roomConfig = ROOM_CONFIGS[currentRoom];
   
+  // LOCAL STATE
+  // --------------------------------------------------------------------------
   const [selectedBet, setSelectedBet] = useState<number | null>(null);
   const [inputBetAmount, setInputBetAmount] = useState(10);
   const [basketballBetInput, setBasketballBetInput] = useState(10);
   const [simonBetInput, setSimonBetInput] = useState(10);
 
+  // COMPUTED VALUES
+  // --------------------------------------------------------------------------
+  const roomConfig = ROOM_CONFIGS[currentRoom];
+  const isWin = diceResult && lastBetForResult === diceResult.total;
+
+  // ==========================================================================
+  // USE EFFECTS
+  // ==========================================================================
+
+  // KEYBOARD SHORTCUTS (E key)
+  // --------------------------------------------------------------------------
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.code !== 'KeyE') return;
 
+      // Dice game: clear result
       if (currentRoom === 'minigame1' && isMiniGameActive && diceResult) {
         setDiceResult(null);
         setSelectedBet(null);
@@ -63,6 +81,7 @@ export function UI() {
         return;
       }
 
+      // Simon game: restart after game over
       if (currentRoom === 'minigame3' && isSimonActive && simonIsGameOver) {
         exitSimonGame();
         setSimonBetInput(10);
@@ -82,8 +101,15 @@ export function UI() {
     exitSimonGame,
   ]);
 
+  // RENDER GUARD
   if (!isPlaying) return null;
 
+  // ==========================================================================
+  // EVENT HANDLERS
+  // ==========================================================================
+
+  // DICE GAME HANDLERS
+  // --------------------------------------------------------------------------
   const handlePlaceBet = () => {
     if (selectedBet !== null && inputBetAmount > 0) {
       const success = placeBet(selectedBet, inputBetAmount);
@@ -120,8 +146,8 @@ export function UI() {
     document.body.requestPointerLock();
   };
 
-  const isWin = diceResult && lastBetForResult === diceResult.total;
-
+  // BASKETBALL GAME HANDLERS
+  // --------------------------------------------------------------------------
   const handleExitBasketball = () => {
     if (basketballBetPlaced && basketballBetAmount > 0) {
       addMoney(basketballBetAmount);
@@ -143,18 +169,27 @@ export function UI() {
     }
   };
 
+  // ==========================================================================
+  // RENDER
+  // ==========================================================================
   return (
     <div className="ui-overlay">
+      {/* CROSSHAIR */}
       {isLocked && !isMiniGameActive && (!isBasketballActive || basketballBetPlaced) && <div className="crosshair" />}
 
+      {/* ROOM INDICATOR */}
       <div className="room-indicator">
         {roomConfig.name}
       </div>
 
+      {/* MONEY DISPLAY */}
       <div className="money-display">
         💰 {money.toLocaleString()}
       </div>
 
+      {/* =====================================================================
+         GENERAL INTERACTION HINTS
+      ===================================================================== */}
       {!isLocked && !isMiniGameActive && (
         <div className="interaction-hint">
           Click the screen to start
@@ -167,6 +202,9 @@ export function UI() {
         </div>
       )}
 
+      {/* =====================================================================
+         DICE GAME UI
+      ===================================================================== */}
       {isLocked && isNearMiniGame && currentRoom === 'minigame1' && !isMiniGameActive && (
         <div className="interaction-hint">
           [E] Start Dice Game 🎲
@@ -294,6 +332,9 @@ export function UI() {
         </div>
       )}
 
+      {/* =====================================================================
+         BASKETBALL GAME UI
+      ===================================================================== */}
       {isLocked && isNearBasketball && currentRoom === 'minigame2' && !isBasketballActive && (
         <div className="interaction-hint">
           [E] Start Basketball Game 🏀
@@ -363,6 +404,9 @@ export function UI() {
         </div>
       )}
 
+      {/* =====================================================================
+         SIMON GAME UI
+      ===================================================================== */}
       {isLocked && isNearSimon && currentRoom === 'minigame3' && !isSimonActive && (
         <div className="interaction-hint">
           [E] Start Simon Game 🎵

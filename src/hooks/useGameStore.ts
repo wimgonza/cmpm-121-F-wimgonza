@@ -2,6 +2,9 @@ import { create } from 'zustand';
 import type { RoomType, Portal } from '../types';
 import { ROOM_CONFIGS, PLAYER_CONFIG } from '../config/rooms';
 
+// ============================================================================
+// TYPES & INTERFACES
+// ============================================================================
 interface DiceResult {
   dice1: number;
   dice2: number;
@@ -10,19 +13,34 @@ interface DiceResult {
 }
 
 interface GameStore {
+  // ========================================================================
+  // CORE GAME STATE
+  // ========================================================================
   currentRoom: RoomType;
   isPlaying: boolean;
   nearPortal: Portal | null;
   isLocked: boolean;
+  playerTeleportTarget: { x: number; y: number; z: number } | null;
   
+  // ECONOMY STATE
   money: number;
+  
+  // ========================================================================
+  // DICE GAME STATE
+  // ========================================================================
   isNearMiniGame: boolean;
   isMiniGameActive: boolean;
-  
   diceResult: DiceResult | null;
   isRolling: boolean;
   shouldTriggerRoll: boolean;
+  currentBet: number | null;
+  betAmount: number;
+  lastBetForResult: number | null;
+  lastBetAmountForResult: number;
   
+  // ========================================================================
+  // BASKETBALL GAME STATE
+  // ========================================================================
   isNearBasketball: boolean;
   isBasketballActive: boolean;
   isHoldingBall: boolean;
@@ -34,12 +52,9 @@ interface GameStore {
   basketballBetPlaced: boolean;
   lastBasketballResult: 'win' | 'lose' | null;
   
-  playerTeleportTarget: { x: number; y: number; z: number } | null;
-  currentBet: number | null;
-  betAmount: number;
-  lastBetForResult: number | null;
-  lastBetAmountForResult: number;
-  
+  // ========================================================================
+  // SIMON GAME STATE
+  // ========================================================================
   isNearSimon: boolean;
   isSimonActive: boolean;
   simonBetAmount: number;
@@ -52,28 +67,41 @@ interface GameStore {
   simonCanClick: boolean;
   simonLitButton: number | null;
   simonIsGameOver: boolean;
-
+  
+  // ========================================================================
+  // CORE GAME ACTIONS
+  // ========================================================================
   saveGame: (position: { x: number; y: number; z: number }, room?: RoomType) => void;
   loadGame: () => void;
-  
   setCurrentRoom: (room: RoomType) => void;
   setIsPlaying: (playing: boolean) => void;
   setNearPortal: (portal: Portal | null) => void;
   setIsLocked: (locked: boolean) => void;
   teleportToRoom: (room: RoomType) => void;
   
+  // ========================================================================
+  // ECONOMY ACTIONS
+  // ========================================================================
   setMoney: (amount: number) => void;
   addMoney: (amount: number) => void;
   removeMoney: (amount: number) => boolean;
   
+  // ========================================================================
+  // DICE GAME ACTIONS
+  // ========================================================================
   setIsNearMiniGame: (near: boolean) => void;
   setIsMiniGameActive: (active: boolean) => void;
-  
   setDiceResult: (result: DiceResult | null) => void;
   setIsRolling: (rolling: boolean) => void;
   triggerRoll: () => void;
   clearTriggerRoll: () => void;
+  setCurrentBet: (bet: number | null) => void;
+  setBetAmount: (amount: number) => void;
+  placeBet: (predictedSum: number, amount: number) => boolean;
   
+  // ========================================================================
+  // BASKETBALL GAME ACTIONS
+  // ========================================================================
   setIsNearBasketball: (near: boolean) => void;
   setIsBasketballActive: (active: boolean) => void;
   setIsHoldingBall: (holding: boolean) => void;
@@ -88,10 +116,9 @@ interface GameStore {
   enterBasketballZone: () => void;
   exitBasketballZone: () => void;
   
-  setCurrentBet: (bet: number | null) => void;
-  setBetAmount: (amount: number) => void;
-  placeBet: (predictedSum: number, amount: number) => boolean;
-  
+  // ========================================================================
+  // SIMON GAME ACTIONS
+  // ========================================================================
   setIsNearSimon: (near: boolean) => void;
   setIsSimonActive: (active: boolean) => void;
   startSimonGame: (betAmount: number) => boolean;
@@ -104,19 +131,35 @@ interface GameStore {
   setSimonGameMessage: (message: string) => void;
 }
 
+// ============================================================================
+// GAME STORE CREATION
+// ============================================================================
 export const useGameStore = create<GameStore>((set, get) => ({
+  // INITIAL STATE
+  // ------------------------------------------------------------------------
+  
+  // CORE GAME STATE
   currentRoom: 'main',
   isPlaying: false,
   nearPortal: null,
   isLocked: false,
+  playerTeleportTarget: null,
   
+  // ECONOMY STATE
   money: 100,
+  
+  // DICE GAME STATE
   isNearMiniGame: false,
   isMiniGameActive: false,
   diceResult: null,
   isRolling: false,
   shouldTriggerRoll: false,
+  currentBet: null,
+  betAmount: 0,
+  lastBetForResult: null,
+  lastBetAmountForResult: 0,
   
+  // BASKETBALL GAME STATE
   isNearBasketball: false,
   isBasketballActive: false,
   isHoldingBall: false,
@@ -127,13 +170,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
   basketballBetAmount: 0,
   basketballBetPlaced: false,
   lastBasketballResult: null,
-  playerTeleportTarget: null,
   
-  currentBet: null,
-  betAmount: 0,
-  lastBetForResult: null,
-  lastBetAmountForResult: 0,
-  
+  // SIMON GAME STATE
   isNearSimon: false,
   isSimonActive: false,
   simonBetAmount: 10,
@@ -147,6 +185,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
   simonLitButton: null,
   simonIsGameOver: false,
 
+  // ========================================================================
+  // CORE GAME ACTIONS
+  // ========================================================================
+  
+  // SAVE/LOAD SYSTEM
+  // ------------------------------------------------------------------------
   saveGame: (position, room) => {
     const state = get();
     const data = {
@@ -185,6 +229,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
   },
 
+  // ROOM MANAGEMENT
+  // ------------------------------------------------------------------------
   setCurrentRoom: (room) => {
     const config = ROOM_CONFIGS[room];
     const spawn = config.spawnPosition;
@@ -204,9 +250,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     get().saveGame(position, room);
   },
+  
   setIsPlaying: (playing) => set({ isPlaying: playing }),
   setNearPortal: (portal) => set({ nearPortal: portal }),
   setIsLocked: (locked) => set({ isLocked: locked }),
+  
   teleportToRoom: (room) => {
     const config = ROOM_CONFIGS[room];
     const spawn = config.spawnPosition;
@@ -238,6 +286,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
     get().saveGame(position, room);
   },
   
+  // ========================================================================
+  // ECONOMY ACTIONS
+  // ========================================================================
   setMoney: (amount) => set({ money: Math.max(0, amount) }),
   addMoney: (amount) => set((state) => ({ money: state.money + amount })),
   removeMoney: (amount) => {
@@ -249,9 +300,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
     return false;
   },
   
+  // ========================================================================
+  // DICE GAME ACTIONS
+  // ========================================================================
   setIsNearMiniGame: (near) => set({ isNearMiniGame: near }),
   setIsMiniGameActive: (active) => set({ isMiniGameActive: active }),
-  
   setDiceResult: (result) => set({ diceResult: result }),
   setIsRolling: (rolling) => set({ isRolling: rolling }),
   
@@ -267,6 +320,25 @@ export const useGameStore = create<GameStore>((set, get) => ({
   
   clearTriggerRoll: () => set({ shouldTriggerRoll: false }),
   
+  setCurrentBet: (bet) => set({ currentBet: bet }),
+  setBetAmount: (amount) => set({ betAmount: amount }),
+  
+  placeBet: (predictedSum, amount) => {
+    const state = get();
+    if (state.money < amount || amount <= 0) return false;
+    if (predictedSum < 2 || predictedSum > 12) return false;
+    
+    set({ 
+      money: state.money - amount,
+      currentBet: predictedSum,
+      betAmount: amount,
+    });
+    return true;
+  },
+  
+  // ========================================================================
+  // BASKETBALL GAME ACTIONS
+  // ========================================================================
   setIsNearBasketball: (near) => set({ isNearBasketball: near }),
   setIsBasketballActive: (active) => set({ isBasketballActive: active }),
   setIsHoldingBall: (holding) => set({ isHoldingBall: holding }),
@@ -274,6 +346,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   setIsChargingThrow: (charging) => set({ isChargingThrow: charging }),
   incrementBasketballScore: () => set((state) => ({ basketballScore: state.basketballScore + 1 })),
   incrementBasketballAttempts: () => set((state) => ({ basketballAttempts: state.basketballAttempts + 1 })),
+  
   resetBasketballGame: () => set({
     basketballScore: 0,
     basketballAttempts: 0,
@@ -284,6 +357,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     basketballBetPlaced: false,
     lastBasketballResult: null,
   }),
+  
   placeBasketballBet: (amount) => {
     const state = get();
     if (state.money < amount || amount <= 0) return false;
@@ -295,6 +369,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     });
     return true;
   },
+  
   resolveBasketballBet: (scored) => {
     const state = get();
     if (!state.basketballBetPlaced) return;
@@ -312,13 +387,16 @@ export const useGameStore = create<GameStore>((set, get) => ({
       });
     }
   },
+  
   setPlayerTeleportTarget: (target) => set({ playerTeleportTarget: target }),
+  
   enterBasketballZone: () => {
     set({ 
       playerTeleportTarget: { x: 0, y: 1.8, z: 1.5 },
       isBasketballActive: true,
     });
   },
+  
   exitBasketballZone: () => {
     set({ 
       playerTeleportTarget: { x: 0, y: 1.8, z: 7 },
@@ -329,23 +407,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
     });
   },
   
-  setCurrentBet: (bet) => set({ currentBet: bet }),
-  setBetAmount: (amount) => set({ betAmount: amount }),
-  placeBet: (predictedSum, amount) => {
-    const state = get();
-    if (state.money < amount || amount <= 0) return false;
-    if (predictedSum < 2 || predictedSum > 12) return false;
-    
-    set({ 
-      money: state.money - amount,
-      currentBet: predictedSum,
-      betAmount: amount,
-    });
-    return true;
-  },
-  
+  // ========================================================================
+  // SIMON GAME ACTIONS
+  // ========================================================================
   setIsNearSimon: (near) => set({ isNearSimon: near }),
   setIsSimonActive: (active) => set({ isSimonActive: active }),
+  
   startSimonGame: (betAmount) => {
     const state = get();
     if (state.money < betAmount || betAmount <= 0) return false;
@@ -362,6 +429,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     });
     return true;
   },
+  
   exitSimonGame: () => set({
     isSimonActive: false,
     simonBetPlaced: false,
@@ -374,8 +442,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
     simonIsGameOver: false,
     simonGameMessage: '',
   }),
+  
   addToSimonPattern: () => {
-    const newButton = Math.floor(Math.random() * 5); // 0~4 (5개의 버튼)
+    const newButton = Math.floor(Math.random() * 5); // 0~4 (5 buttons)
     set((state) => ({
       simonPattern: [...state.simonPattern, newButton],
       simonPlayerPattern: [],
@@ -384,6 +453,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       simonGameMessage: 'Memorize the pattern!',
     }));
   },
+  
   simonButtonClick: (button) => {
     const state = get();
     if (!state.simonCanClick || state.simonIsShowingPattern || state.simonIsGameOver) return;
@@ -391,7 +461,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const newPlayerPattern = [...state.simonPlayerPattern, button];
     const currentIndex = newPlayerPattern.length - 1;
     
-    // 틀림
+    // Wrong button
     if (state.simonPattern[currentIndex] !== button) {
       set({
         simonPlayerPattern: newPlayerPattern,
@@ -402,10 +472,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
       return;
     }
     
-    // 패턴 완성
+    // Pattern completed
     if (newPlayerPattern.length === state.simonPattern.length) {
       const newScore = state.simonScore + 1;
       const reward = state.simonBetAmount * newScore;
+      
       if (newScore >= 10) {
         set({
           simonPlayerPattern: newPlayerPattern,
@@ -428,6 +499,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       set({ simonPlayerPattern: newPlayerPattern });
     }
   },
+  
   setSimonLitButton: (button) => set({ simonLitButton: button }),
   setSimonShowingPattern: (showing) => set({ simonIsShowingPattern: showing }),
   setSimonCanClick: (canClick) => set({ simonCanClick: canClick }),
