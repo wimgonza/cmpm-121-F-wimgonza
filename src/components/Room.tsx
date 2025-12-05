@@ -1,7 +1,9 @@
 import { useEffect, useRef } from 'react';
+import { useTheme } from '../hooks/useTheme.tsx';
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
 import type { RoomConfig } from '../types';
+import type { ThemeColors } from '../hooks/useTheme.tsx';
 import { Portal } from './Portal';
 import { MiniGameZone } from './MiniGameZone';
 import { DiceGame } from './DiceGame';
@@ -31,11 +33,19 @@ export function Room({
   groundMaterial, 
   wallMaterial 
 }: RoomProps) {
+  
   // PROPS DESTRUCTURING
-  const { size, floorColor, wallColor, portals } = config;
+  const { size, portals } = config; // Removed floorColor and wallColor from props
   
   // REFERENCES
   const bodiesRef = useRef<CANNON.Body[]>([]);
+  
+  // THEME
+  const { colors } = useTheme();
+  
+  // THEME-BASED COLORS (Replace the props with theme colors)
+  const themeFloorColor = getRoomColor(config.id, 'floor', colors);
+  const themeWallColor = getRoomColor(config.id, 'wall', colors);
 
   // ==========================================================================
   // PHYSICS SETUP EFFECT
@@ -182,7 +192,7 @@ export function Room({
       {/* FLOOR */}
       <mesh position={[0, -0.01, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <planeGeometry args={[size.width, size.depth]} />
-        <meshBasicMaterial color={floorColor} />
+        <meshBasicMaterial color={themeFloorColor} />
       </mesh>
 
       {/* FLOOR GRID */}
@@ -194,31 +204,31 @@ export function Room({
       {/* CEILING */}
       <mesh position={[0, size.height, 0]} rotation={[Math.PI / 2, 0, 0]}>
         <planeGeometry args={[size.width, size.depth]} />
-        <meshBasicMaterial color={wallColor} side={THREE.DoubleSide} />
+        <meshBasicMaterial color={themeWallColor} side={THREE.DoubleSide} />
       </mesh>
 
       {/* NORTH WALL (negative Z) */}
       <mesh position={[0, size.height / 2, -size.depth / 2]}>
         <planeGeometry args={[size.width, size.height]} />
-        <meshBasicMaterial color={wallColor} side={THREE.DoubleSide} />
+        <meshBasicMaterial color={themeWallColor} side={THREE.DoubleSide} />
       </mesh>
 
       {/* SOUTH WALL (positive Z) */}
       <mesh position={[0, size.height / 2, size.depth / 2]} rotation={[0, Math.PI, 0]}>
         <planeGeometry args={[size.width, size.height]} />
-        <meshBasicMaterial color={wallColor} side={THREE.DoubleSide} />
+        <meshBasicMaterial color={themeWallColor} side={THREE.DoubleSide} />
       </mesh>
 
       {/* EAST WALL (positive X) */}
       <mesh position={[size.width / 2, size.height / 2, 0]} rotation={[0, -Math.PI / 2, 0]}>
         <planeGeometry args={[size.depth, size.height]} />
-        <meshBasicMaterial color={wallColor} side={THREE.DoubleSide} />
+        <meshBasicMaterial color={themeWallColor} side={THREE.DoubleSide} />
       </mesh>
 
       {/* WEST WALL (negative X) */}
       <mesh position={[-size.width / 2, size.height / 2, 0]} rotation={[0, Math.PI / 2, 0]}>
         <planeGeometry args={[size.depth, size.height]} />
-        <meshBasicMaterial color={wallColor} side={THREE.DoubleSide} />
+        <meshBasicMaterial color={themeWallColor} side={THREE.DoubleSide} />
       </mesh>
 
       {/* PORTALS */}
@@ -289,4 +299,26 @@ export function Room({
       )}
     </group>
   );
+}
+
+// ============================================================================
+// HELPER FUNCTIONS
+// ============================================================================
+
+// GET ROOM COLOR FROM THEME
+function getRoomColor(roomId: string, type: 'floor' | 'wall', colors: ThemeColors): string {
+  switch (roomId) {
+    case 'main':
+      return type === 'floor' ? colors.roomMainFloor : colors.roomMainWall;
+    case 'minigame1':
+      return type === 'floor' ? colors.roomDiceFloor : colors.roomDiceWall;
+    case 'minigame2':
+      return type === 'floor' ? colors.roomBasketballFloor : colors.roomBasketballWall;
+    case 'minigame3':
+      return type === 'floor' ? colors.roomSimonFloor : colors.roomSimonWall;
+    case 'minigame4':
+      return type === 'floor' ? colors.roomPurpleFloor : colors.roomPurpleWall;
+    default:
+      return type === 'floor' ? '#555566' : '#444455';
+  }
 }

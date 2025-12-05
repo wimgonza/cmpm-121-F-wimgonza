@@ -1,7 +1,38 @@
+/* ============================================================================
+   CSS VARIABLES (Will be set by Theme Hook)
+============================================================================ */
+:root {
+  /* UI Colors (Defaults - will be overridden by theme hook) */
+  --ui-bg-primary: #ffffff;
+  --ui-bg-secondary: #f8f9fa;
+  --ui-text-primary: #212529;
+  --ui-text-secondary: #6c757d;
+  --ui-accent: #4a90e2;
+  --ui-border: #dee2e6;
+  --ui-success: #28a745;
+  --ui-warning: #ffc107;
+  --ui-danger: #dc3545;
+  --ui-info: #17a2b8;
+  
+  /* UI Effects */
+  --ui-shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.1);
+  --ui-shadow-md: 0 4px 8px rgba(0, 0, 0, 0.15);
+  --ui-shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.2);
+  --ui-panel-bg: rgba(255, 255, 255, 0.95);
+  --ui-panel-border: rgba(0, 0, 0, 0.1);
+}
+
+/* ============================================================================
+   BASE STYLES
+============================================================================ */
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+  transition: background-color 0.3s ease, 
+              color 0.3s ease, 
+              border-color 0.3s ease,
+              box-shadow 0.3s ease;
 }
 
 html, body, #root {
@@ -12,11 +43,20 @@ html, body, #root {
 
 body {
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  background: #000;
+  background: var(--ui-bg-primary);
+  color: var(--ui-text-primary);
 }
 
 canvas {
   display: block;
+}
+
+/* Smooth transitions for interactive elements */
+button,
+input,
+select,
+textarea {
+  transition: all 0.2s ease;
 }
 
 /* lil-gui style override */
@@ -43,7 +83,7 @@ canvas {
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0, 0, 0, 0.5);
+  background: color-mix(in srgb, var(--ui-bg-primary) 50%, transparent 50%);
   pointer-events: auto;
   z-index: 999;
   display: flex;
@@ -65,7 +105,7 @@ canvas {
 .crosshair::after {
   content: '';
   position: absolute;
-  background: rgba(255, 255, 255, 0.8);
+  background: color-mix(in srgb, var(--ui-text-primary) 80%, transparent 20%);
 }
 
 .crosshair::before {
@@ -87,13 +127,15 @@ canvas {
   bottom: 100px;
   left: 50%;
   transform: translateX(-50%);
-  background: rgba(0, 0, 0, 0.7);
-  color: white;
+  background: color-mix(in srgb, var(--ui-bg-primary) 20%, transparent 80%);
+  backdrop-filter: blur(10px);
+  color: var(--ui-text-primary);
   padding: 12px 24px;
   border-radius: 8px;
   font-size: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  border: 1px solid color-mix(in srgb, var(--ui-border) 50%, transparent 50%);
   pointer-events: none;
+  box-shadow: var(--ui-shadow-md);
 }
 
 .room-indicator {
@@ -101,13 +143,15 @@ canvas {
   top: 20px;
   left: 50%;
   transform: translateX(-50%);
-  background: rgba(0, 0, 0, 0.7);
-  color: white;
+  background: color-mix(in srgb, var(--ui-bg-primary) 20%, transparent 80%);
+  backdrop-filter: blur(10px);
+  color: var(--ui-text-primary);
   padding: 10px 20px;
   border-radius: 8px;
   font-size: 18px;
   font-weight: bold;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid color-mix(in srgb, var(--ui-border) 50%, transparent 50%);
+  box-shadow: var(--ui-shadow-sm);
 }
 
 /* money display (top right) */
@@ -115,15 +159,19 @@ canvas {
   position: absolute;
   top: 20px;
   right: 20px;
-  background: linear-gradient(135deg, rgba(255, 215, 0, 0.2), rgba(255, 165, 0, 0.2));
-  color: #ffd700;
+  background: linear-gradient(
+    135deg, 
+    color-mix(in srgb, var(--ui-warning) 20%, transparent 80%),
+    color-mix(in srgb, var(--ui-warning) 10%, transparent 90%)
+  );
+  color: var(--ui-warning);
   padding: 12px 20px;
   border-radius: 8px;
   font-size: 20px;
   font-weight: bold;
-  border: 2px solid rgba(255, 215, 0, 0.5);
+  border: 2px solid color-mix(in srgb, var(--ui-warning) 50%, transparent 50%);
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--ui-shadow-md);
 }
 
 .start-screen {
@@ -132,7 +180,12 @@ canvas {
   left: 0;
   width: 100%;
   height: 100%;
-  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+  background: linear-gradient(
+    135deg, 
+    color-mix(in srgb, var(--ui-bg-primary) 80%, black 20%),
+    color-mix(in srgb, var(--ui-bg-secondary) 60%, black 40%),
+    color-mix(in srgb, var(--ui-accent) 20%, black 80%)
+  );
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -142,21 +195,21 @@ canvas {
 }
 
 .start-screen h1 {
-  color: #e94560;
+  color: var(--ui-danger);
   font-size: 48px;
   margin-bottom: 20px;
   text-shadow: 0 0 20px rgba(233, 69, 96, 0.5);
 }
 
 .start-screen p {
-  color: #fff;
+  color: var(--ui-text-primary);
   font-size: 18px;
   margin-bottom: 40px;
   opacity: 0.8;
 }
 
 .start-button {
-  background: linear-gradient(135deg, #e94560, #ff6b6b);
+  background: linear-gradient(135deg, var(--ui-accent), color-mix(in srgb, var(--ui-accent) 70%, white 30%));
   color: white;
   border: none;
   padding: 16px 48px;
@@ -169,13 +222,14 @@ canvas {
 
 .start-button:hover {
   transform: scale(1.05);
-  box-shadow: 0 10px 30px rgba(233, 69, 96, 0.4);
+  box-shadow: 0 10px 30px rgba(74, 144, 226, 0.4);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--ui-accent) 90%, white 10%), var(--ui-accent));
 }
 
 .controls-info {
   position: absolute;
   bottom: 40px;
-  color: rgba(255, 255, 255, 0.6);
+  color: color-mix(in srgb, var(--ui-text-primary) 60%, transparent 40%);
   font-size: 14px;
   text-align: center;
 }
@@ -200,15 +254,16 @@ canvas {
   bottom: 80px;
   left: 50%;
   transform: translateX(-50%);
-  background: rgba(0, 0, 0, 0.85);
-  color: white;
+  background: var(--ui-panel-bg);
+  backdrop-filter: blur(10px);
+  color: var(--ui-text-primary);
   padding: 20px 30px;
   border-radius: 12px;
   font-size: 18px;
-  border: 2px solid rgba(255, 100, 100, 0.5);
+  border: 2px solid color-mix(in srgb, var(--ui-danger) 50%, transparent 50%);
   pointer-events: none;
   text-align: center;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--ui-shadow-lg);
 }
 
 .dice-values {
@@ -220,7 +275,7 @@ canvas {
 
 .dice-values .dice {
   font-size: 28px;
-  background: linear-gradient(135deg, #cc0000, #880000);
+  background: linear-gradient(135deg, var(--ui-danger), color-mix(in srgb, var(--ui-danger) 70%, black 30%));
   padding: 10px 15px;
   border-radius: 8px;
   min-width: 60px;
@@ -233,13 +288,13 @@ canvas {
 }
 
 .dice-total strong {
-  color: #ff6b6b;
+  color: var(--ui-danger);
   font-size: 28px;
 }
 
 .dice-hint {
   font-size: 14px;
-  color: rgba(255, 255, 255, 0.6);
+  color: color-mix(in srgb, var(--ui-text-primary) 60%, transparent 40%);
   margin-top: 10px;
 }
 
@@ -249,26 +304,27 @@ canvas {
   bottom: 60px;
   left: 50%;
   transform: translateX(-50%);
-  background: rgba(0, 0, 0, 0.9);
-  color: white;
+  background: var(--ui-panel-bg);
+  backdrop-filter: blur(10px);
+  color: var(--ui-text-primary);
   padding: 20px 30px;
   border-radius: 12px;
-  border: 2px solid rgba(255, 100, 100, 0.5);
+  border: 2px solid color-mix(in srgb, var(--ui-danger) 50%, transparent 50%);
   pointer-events: auto;
   text-align: center;
   min-width: 400px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--ui-shadow-lg);
 }
 
 .betting-panel h3 {
   margin-bottom: 15px;
   font-size: 22px;
-  color: #ff6b6b;
+  color: var(--ui-danger);
 }
 
 .betting-panel p {
   margin-bottom: 10px;
-  color: rgba(255, 255, 255, 0.8);
+  color: color-mix(in srgb, var(--ui-text-primary) 80%, transparent 20%);
 }
 
 /* betting number select button */
@@ -283,9 +339,9 @@ canvas {
 .bet-number {
   width: 45px;
   height: 45px;
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  background: rgba(255, 255, 255, 0.1);
-  color: white;
+  border: 2px solid color-mix(in srgb, var(--ui-border) 30%, transparent 70%);
+  background: color-mix(in srgb, var(--ui-bg-secondary) 10%, transparent 90%);
+  color: var(--ui-text-primary);
   border-radius: 8px;
   font-size: 18px;
   font-weight: bold;
@@ -294,15 +350,15 @@ canvas {
 }
 
 .bet-number:hover {
-  background: rgba(255, 100, 100, 0.3);
-  border-color: #ff6b6b;
+  background: color-mix(in srgb, var(--ui-danger) 30%, transparent 70%);
+  border-color: var(--ui-danger);
 }
 
 .bet-number.selected {
-  background: linear-gradient(135deg, #e94560, #ff6b6b);
-  border-color: #ff6b6b;
+  background: linear-gradient(135deg, var(--ui-danger), color-mix(in srgb, var(--ui-danger) 70%, white 30%));
+  border-color: var(--ui-danger);
   transform: scale(1.1);
-  box-shadow: 0 4px 15px rgba(233, 69, 96, 0.4);
+  box-shadow: 0 4px 15px rgba(220, 53, 69, 0.4);
 }
 
 /* betting amount input */
@@ -316,7 +372,7 @@ canvas {
 
 .bet-amount-row label {
   font-size: 14px;
-  color: rgba(255, 255, 255, 0.7);
+  color: color-mix(in srgb, var(--ui-text-primary) 70%, transparent 30%);
 }
 
 .bet-amount-controls {
@@ -328,25 +384,25 @@ canvas {
 .bet-amount-controls button {
   width: 40px;
   height: 35px;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  background: rgba(255, 255, 255, 0.1);
-  color: white;
+  border: 1px solid color-mix(in srgb, var(--ui-border) 30%, transparent 70%);
+  background: color-mix(in srgb, var(--ui-bg-secondary) 10%, transparent 90%);
+  color: var(--ui-text-primary);
   border-radius: 4px;
   cursor: pointer;
   font-size: 14px;
 }
 
 .bet-amount-controls button:hover {
-  background: rgba(255, 100, 100, 0.3);
+  background: color-mix(in srgb, var(--ui-danger) 30%, transparent 70%);
 }
 
 .bet-amount-controls input {
   width: 80px;
   height: 35px;
   text-align: center;
-  background: rgba(0, 0, 0, 0.5);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  color: white;
+  background: color-mix(in srgb, var(--ui-bg-primary) 50%, transparent 50%);
+  border: 1px solid color-mix(in srgb, var(--ui-border) 30%, transparent 70%);
+  color: var(--ui-text-primary);
   border-radius: 4px;
   font-size: 16px;
 }
@@ -361,9 +417,9 @@ canvas {
 
 .quick-bet-buttons button {
   padding: 8px 15px;
-  border: 1px solid rgba(255, 215, 0, 0.5);
-  background: rgba(255, 215, 0, 0.1);
-  color: #ffd700;
+  border: 1px solid color-mix(in srgb, var(--ui-warning) 50%, transparent 50%);
+  background: color-mix(in srgb, var(--ui-warning) 10%, transparent 90%);
+  color: var(--ui-warning);
   border-radius: 4px;
   cursor: pointer;
   font-size: 13px;
@@ -371,14 +427,14 @@ canvas {
 }
 
 .quick-bet-buttons button:hover {
-  background: rgba(255, 215, 0, 0.3);
+  background: color-mix(in srgb, var(--ui-warning) 30%, transparent 70%);
 }
 
 /* 배팅 확정 버튼 */
 .place-bet-button {
   width: 100%;
   padding: 15px 20px;
-  background: linear-gradient(135deg, #e94560, #ff6b6b);
+  background: linear-gradient(135deg, var(--ui-danger), color-mix(in srgb, var(--ui-danger) 70%, white 30%));
   color: white;
   border: none;
   border-radius: 8px;
@@ -390,11 +446,13 @@ canvas {
 
 .place-bet-button:hover:not(:disabled) {
   transform: scale(1.02);
-  box-shadow: 0 5px 20px rgba(233, 69, 96, 0.4);
+  box-shadow: 0 5px 20px rgba(220, 53, 69, 0.4);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--ui-danger) 90%, white 10%), var(--ui-danger));
 }
 
 .place-bet-button:disabled {
-  background: rgba(100, 100, 100, 0.5);
+  background: color-mix(in srgb, var(--ui-text-secondary) 50%, transparent 50%);
+  color: var(--ui-text-secondary);
   cursor: not-allowed;
 }
 
@@ -408,12 +466,12 @@ canvas {
 }
 
 .current-bet-info strong {
-  color: #ff6b6b;
+  color: var(--ui-danger);
   font-size: 20px;
 }
 
 .current-bet-info .win-amount {
-  color: #00ff88;
+  color: var(--ui-success);
   font-size: 24px;
 }
 
@@ -426,7 +484,7 @@ canvas {
 .roll-button {
   flex: 2;
   padding: 15px 20px;
-  background: linear-gradient(135deg, #00aa55, #00dd66);
+  background: linear-gradient(135deg, var(--ui-success), color-mix(in srgb, var(--ui-success) 70%, white 30%));
   color: white;
   border: none;
   border-radius: 8px;
@@ -438,15 +496,16 @@ canvas {
 
 .roll-button:hover {
   transform: scale(1.02);
-  box-shadow: 0 5px 20px rgba(0, 200, 100, 0.4);
+  box-shadow: 0 5px 20px rgba(40, 167, 69, 0.4);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--ui-success) 90%, white 10%), var(--ui-success));
 }
 
 .cancel-button {
   flex: 1;
   padding: 15px 20px;
-  background: rgba(150, 150, 150, 0.3);
-  color: white;
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: color-mix(in srgb, var(--ui-text-secondary) 30%, transparent 70%);
+  color: var(--ui-text-primary);
+  border: 1px solid color-mix(in srgb, var(--ui-border) 30%, transparent 70%);
   border-radius: 8px;
   font-size: 14px;
   cursor: pointer;
@@ -454,8 +513,8 @@ canvas {
 }
 
 .cancel-button:hover {
-  background: rgba(255, 100, 100, 0.3);
-  border-color: #ff6b6b;
+  background: color-mix(in srgb, var(--ui-danger) 30%, transparent 70%);
+  border-color: var(--ui-danger);
 }
 
 /* 패널 헤더 */
@@ -472,9 +531,9 @@ canvas {
 
 .exit-button {
   padding: 8px 15px;
-  background: rgba(150, 150, 150, 0.3);
-  color: white;
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: color-mix(in srgb, var(--ui-text-secondary) 30%, transparent 70%);
+  color: var(--ui-text-primary);
+  border: 1px solid color-mix(in srgb, var(--ui-border) 30%, transparent 70%);
   border-radius: 4px;
   cursor: pointer;
   font-size: 12px;
@@ -482,8 +541,8 @@ canvas {
 }
 
 .exit-button:hover {
-  background: rgba(255, 100, 100, 0.5);
-  border-color: #ff6b6b;
+  background: color-mix(in srgb, var(--ui-danger) 50%, transparent 50%);
+  border-color: var(--ui-danger);
 }
 
 /* 주사위 굴리는 중 패널 */
@@ -492,19 +551,20 @@ canvas {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  background: rgba(0, 0, 0, 0.9);
-  color: white;
+  background: var(--ui-panel-bg);
+  backdrop-filter: blur(10px);
+  color: var(--ui-text-primary);
   padding: 40px 60px;
   border-radius: 12px;
-  border: 2px solid rgba(255, 100, 100, 0.5);
+  border: 2px solid color-mix(in srgb, var(--ui-danger) 50%, transparent 50%);
   text-align: center;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--ui-shadow-lg);
 }
 
 .dice-rolling-panel h3 {
   margin-bottom: 20px;
   font-size: 24px;
-  color: #ff6b6b;
+  color: var(--ui-danger);
 }
 
 .rolling-animation {
@@ -523,14 +583,15 @@ canvas {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  background: rgba(0, 0, 0, 0.95);
-  color: white;
+  background: var(--ui-panel-bg);
+  backdrop-filter: blur(10px);
+  color: var(--ui-text-primary);
   padding: 30px 50px;
   border-radius: 12px;
-  border: 2px solid rgba(255, 100, 100, 0.5);
+  border: 2px solid color-mix(in srgb, var(--ui-danger) 50%, transparent 50%);
   text-align: center;
   min-width: 350px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--ui-shadow-lg);
   pointer-events: auto;
 }
 
@@ -549,7 +610,7 @@ canvas {
 
 .win-message {
   font-size: 24px;
-  color: #00ff88;
+  color: var(--ui-success);
   font-weight: bold;
   margin-bottom: 20px;
   animation: pulse-win 0.5s ease-in-out infinite;
@@ -564,7 +625,7 @@ canvas {
   width: 100%;
   padding: 15px 20px;
   margin-bottom: 10px;
-  background: linear-gradient(135deg, #e94560, #ff6b6b);
+  background: linear-gradient(135deg, var(--ui-danger), color-mix(in srgb, var(--ui-danger) 70%, white 30%));
   color: white;
   border: none;
   border-radius: 8px;
@@ -576,15 +637,16 @@ canvas {
 
 .play-again-button:hover {
   transform: scale(1.02);
-  box-shadow: 0 5px 20px rgba(233, 69, 96, 0.4);
+  box-shadow: 0 5px 20px rgba(220, 53, 69, 0.4);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--ui-danger) 90%, white 10%), var(--ui-danger));
 }
 
 .exit-mini-button {
   width: 100%;
   padding: 12px 20px;
-  background: rgba(150, 150, 150, 0.3);
-  color: white;
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: color-mix(in srgb, var(--ui-text-secondary) 30%, transparent 70%);
+  color: var(--ui-text-primary);
+  border: 1px solid color-mix(in srgb, var(--ui-border) 30%, transparent 70%);
   border-radius: 8px;
   font-size: 14px;
   cursor: pointer;
@@ -592,21 +654,21 @@ canvas {
 }
 
 .exit-mini-button:hover {
-  background: rgba(100, 100, 100, 0.5);
+  background: color-mix(in srgb, var(--ui-danger) 30%, transparent 70%);
 }
 
 /* improve result panel styles */
 .dice-result-panel.win {
-  border-color: #00ff88;
+  border-color: color-mix(in srgb, var(--ui-success) 50%, transparent 50%);
 }
 
 .dice-result-panel.lose {
-  border-color: #ff6b6b;
+  border-color: color-mix(in srgb, var(--ui-danger) 50%, transparent 50%);
 }
 
 .result-bet-info {
   font-size: 14px;
-  color: rgba(255, 255, 255, 0.7);
+  color: color-mix(in srgb, var(--ui-text-primary) 70%, transparent 30%);
   margin-bottom: 20px;
 }
 
@@ -620,7 +682,7 @@ canvas {
 
 .dice-result-panel .dice {
   font-size: 36px;
-  background: linear-gradient(135deg, #cc0000, #880000);
+  background: linear-gradient(135deg, var(--ui-danger), color-mix(in srgb, var(--ui-danger) 70%, black 30%));
   padding: 15px 20px;
   border-radius: 8px;
   min-width: 60px;
@@ -630,22 +692,22 @@ canvas {
 .dice-result-panel .plus,
 .dice-result-panel .equals {
   font-size: 24px;
-  color: rgba(255, 255, 255, 0.7);
+  color: color-mix(in srgb, var(--ui-text-primary) 70%, transparent 30%);
 }
 
 .dice-result-panel .total {
   font-size: 42px;
   font-weight: bold;
-  color: #ffd700;
+  color: var(--ui-warning);
   padding: 10px 20px;
-  background: rgba(255, 215, 0, 0.2);
+  background: color-mix(in srgb, var(--ui-warning) 20%, transparent 80%);
   border-radius: 8px;
-  border: 2px solid rgba(255, 215, 0, 0.5);
+  border: 2px solid color-mix(in srgb, var(--ui-warning) 50%, transparent 50%);
 }
 
 .lose-message {
   font-size: 20px;
-  color: #ff6b6b;
+  color: var(--ui-danger);
   font-weight: bold;
   margin-bottom: 20px;
 }
@@ -656,27 +718,29 @@ canvas {
   bottom: 60px;
   left: 50%;
   transform: translateX(-50%);
-  background: rgba(0, 50, 80, 0.95);
-  color: white;
+  background: color-mix(in srgb, var(--ui-info) 5%, var(--ui-panel-bg) 95%);
+  color: var(--ui-text-primary);
   padding: 20px 30px;
   border-radius: 12px;
-  border: 2px solid rgba(100, 200, 255, 0.5);
+  border: 2px solid color-mix(in srgb, var(--ui-info) 50%, transparent 50%);
   pointer-events: auto;
   text-align: center;
   min-width: 400px;
-  box-shadow: 0 10px 40px rgba(0, 100, 200, 0.3);
+  box-shadow: var(--ui-shadow-lg);
+  backdrop-filter: blur(10px);
 }
 
 .basketball-panel h3 {
   margin: 0 0 15px 0;
   font-size: 24px;
+  color: var(--ui-info);
 }
 
 .basketball-score {
   font-size: 18px;
   margin-bottom: 15px;
   padding: 10px;
-  background: rgba(255, 255, 255, 0.1);
+  background: color-mix(in srgb, var(--ui-bg-secondary) 10%, transparent 90%);
   border-radius: 8px;
 }
 
@@ -686,7 +750,7 @@ canvas {
 
 .basketball-bet-section p {
   margin-bottom: 15px;
-  color: rgba(255, 255, 255, 0.8);
+  color: color-mix(in srgb, var(--ui-text-primary) 80%, transparent 20%);
 }
 
 .basketball-play-guide {
@@ -696,12 +760,12 @@ canvas {
 
 .basketball-play-guide hr {
   border: none;
-  border-top: 1px solid rgba(255, 255, 255, 0.2);
+  border-top: 1px solid color-mix(in srgb, var(--ui-border) 20%, transparent 80%);
   margin: 15px 0;
 }
 
 .controls-guide {
-  background: rgba(255, 255, 255, 0.05);
+  background: color-mix(in srgb, var(--ui-bg-secondary) 5%, transparent 95%);
   padding: 15px;
   border-radius: 8px;
   margin-bottom: 15px;
@@ -710,26 +774,27 @@ canvas {
 .controls-guide p {
   margin: 8px 0;
   font-size: 14px;
+  color: color-mix(in srgb, var(--ui-text-primary) 80%, transparent 20%);
 }
 
 /* power gauge */
 .power-gauge-container {
   margin: 20px 0;
   padding: 15px;
-  background: rgba(0, 0, 0, 0.3);
+  background: color-mix(in srgb, var(--ui-bg-primary) 30%, transparent 70%);
   border-radius: 8px;
 }
 
 .power-label {
   font-size: 14px;
   margin-bottom: 8px;
-  color: rgba(255, 255, 255, 0.7);
+  color: color-mix(in srgb, var(--ui-text-primary) 70%, transparent 30%);
 }
 
 .power-gauge {
   width: 100%;
   height: 20px;
-  background: rgba(255, 255, 255, 0.1);
+  background: color-mix(in srgb, var(--ui-bg-secondary) 10%, transparent 90%);
   border-radius: 10px;
   overflow: hidden;
 }
@@ -744,11 +809,12 @@ canvas {
   margin-top: 8px;
   font-size: 18px;
   font-weight: bold;
+  color: var(--ui-text-primary);
 }
 
 .charging-indicator {
   font-size: 16px;
-  color: #ffff00;
+  color: var(--ui-warning);
   animation: pulse 0.3s ease-in-out infinite;
 }
 
@@ -765,28 +831,29 @@ canvas {
 }
 
 .basketball-result.win {
-  background: rgba(0, 255, 100, 0.2);
-  border: 2px solid rgba(0, 255, 100, 0.5);
+  background: color-mix(in srgb, var(--ui-success) 20%, transparent 80%);
+  border: 2px solid color-mix(in srgb, var(--ui-success) 50%, transparent 50%);
 }
 
 .basketball-result.lose {
-  background: rgba(255, 100, 100, 0.2);
-  border: 2px solid rgba(255, 100, 100, 0.5);
+  background: color-mix(in srgb, var(--ui-danger) 20%, transparent 80%);
+  border: 2px solid color-mix(in srgb, var(--ui-danger) 50%, transparent 50%);
 }
 
 .basketball-result h4 {
   margin: 0 0 10px 0;
   font-size: 24px;
+  color: var(--ui-text-primary);
 }
 
 .basketball-result .win-amount {
-  color: #00ff88;
+  color: var(--ui-success);
   font-size: 20px;
   font-weight: bold;
 }
 
 .basketball-result .lose-amount {
-  color: #ff6b6b;
+  color: var(--ui-danger);
   font-size: 20px;
   font-weight: bold;
 }
@@ -802,22 +869,25 @@ canvas {
 }
 
 .basketball-hud-info {
-  background: rgba(0, 0, 0, 0.7);
-  color: white;
+  background: color-mix(in srgb, var(--ui-bg-primary) 20%, transparent 80%);
+  backdrop-filter: blur(10px);
+  color: var(--ui-text-primary);
   padding: 10px 20px;
   border-radius: 8px;
   font-size: 14px;
   margin-bottom: 10px;
+  border: 1px solid color-mix(in srgb, var(--ui-border) 30%, transparent 70%);
 }
 
 .basketball-power-bar {
   width: 200px;
   height: 20px;
-  background: rgba(0, 0, 0, 0.7);
+  background: color-mix(in srgb, var(--ui-bg-primary) 30%, transparent 70%);
   border-radius: 10px;
   overflow: hidden;
   position: relative;
   margin: 0 auto;
+  border: 1px solid color-mix(in srgb, var(--ui-border) 30%, transparent 70%);
 }
 
 .basketball-power-fill {
@@ -830,10 +900,10 @@ canvas {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  color: white;
+  color: var(--ui-text-primary);
   font-weight: bold;
   font-size: 12px;
-  text-shadow: 1px 1px 2px black;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
 }
 
 /* basketball game result overlay */
@@ -842,26 +912,29 @@ canvas {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  background: rgba(0, 0, 0, 0.9);
-  color: white;
+  background: var(--ui-panel-bg);
+  backdrop-filter: blur(10px);
+  color: var(--ui-text-primary);
   padding: 40px 60px;
   border-radius: 16px;
   text-align: center;
   pointer-events: auto;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--ui-shadow-lg);
+  border: 3px solid;
 }
 
 .basketball-result-overlay.win {
-  border: 3px solid #00ff88;
+  border-color: color-mix(in srgb, var(--ui-success) 50%, transparent 50%);
 }
 
 .basketball-result-overlay.lose {
-  border: 3px solid #ff6b6b;
+  border-color: color-mix(in srgb, var(--ui-danger) 50%, transparent 50%);
 }
 
 .basketball-result-overlay h2 {
   margin: 0 0 20px 0;
   font-size: 36px;
+  color: var(--ui-text-primary);
 }
 
 .basketball-result-overlay .result-amount {
@@ -871,11 +944,11 @@ canvas {
 }
 
 .basketball-result-overlay.win .result-amount {
-  color: #00ff88;
+  color: var(--ui-success);
 }
 
 .basketball-result-overlay.lose .result-amount {
-  color: #ff6b6b;
+  color: var(--ui-danger);
 }
 
 .result-buttons {
@@ -893,24 +966,25 @@ canvas {
 }
 
 .result-buttons .play-again-button {
-  background: linear-gradient(135deg, #00cc66, #009944);
+  background: linear-gradient(135deg, var(--ui-success), color-mix(in srgb, var(--ui-success) 70%, white 30%));
   color: white;
   border: none;
 }
 
 .result-buttons .play-again-button:hover {
   transform: scale(1.05);
-  box-shadow: 0 5px 20px rgba(0, 200, 100, 0.4);
+  box-shadow: 0 5px 20px rgba(40, 167, 69, 0.4);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--ui-success) 90%, white 10%), var(--ui-success));
 }
 
 .result-buttons .exit-button {
-  background: rgba(100, 100, 100, 0.5);
-  color: white;
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: color-mix(in srgb, var(--ui-text-secondary) 50%, transparent 50%);
+  color: var(--ui-text-primary);
+  border: 1px solid color-mix(in srgb, var(--ui-border) 30%, transparent 70%);
 }
 
 .result-buttons .exit-button:hover {
-  background: rgba(255, 100, 100, 0.3);
+  background: color-mix(in srgb, var(--ui-danger) 30%, transparent 70%);
 }
 
 /* Simon game styles */
@@ -919,14 +993,15 @@ canvas {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  background: rgba(20, 0, 40, 0.95);
-  border: 2px solid #9966ff;
+  background: color-mix(in srgb, #9966ff 5%, var(--ui-panel-bg) 95%);
+  border: 2px solid color-mix(in srgb, #9966ff 50%, transparent 50%);
   border-radius: 15px;
   padding: 25px;
   min-width: 350px;
-  box-shadow: 0 0 30px rgba(153, 102, 255, 0.5);
+  box-shadow: var(--ui-shadow-lg);
   z-index: 1000;
   pointer-events: auto;
+  backdrop-filter: blur(10px);
 }
 
 .simon-panel .panel-header {
@@ -935,7 +1010,7 @@ canvas {
   align-items: center;
   margin-bottom: 20px;
   padding-bottom: 15px;
-  border-bottom: 1px solid rgba(153, 102, 255, 0.3);
+  border-bottom: 1px solid color-mix(in srgb, #9966ff 30%, transparent 70%);
 }
 
 .simon-panel button,
@@ -947,11 +1022,11 @@ canvas {
 .simon-panel h3 {
   margin: 0;
   font-size: 24px;
-  color: #cc99ff;
+  color: color-mix(in srgb, var(--ui-accent) 70%, white 30%);
 }
 
 .simon-rules {
-  background: rgba(153, 102, 255, 0.1);
+  background: color-mix(in srgb, #9966ff 10%, transparent 90%);
   padding: 15px;
   border-radius: 8px;
   margin-bottom: 20px;
@@ -960,7 +1035,7 @@ canvas {
 
 .simon-rules p {
   margin: 5px 0;
-  color: #ddddff;
+  color: color-mix(in srgb, var(--ui-text-primary) 90%, transparent 10%);
 }
 
 .simon-hud {
@@ -968,22 +1043,23 @@ canvas {
   top: 80px;
   left: 50%;
   transform: translateX(-50%);
-  background: rgba(20, 0, 40, 0.85);
+  background: color-mix(in srgb, var(--ui-bg-primary) 20%, transparent 80%);
+  backdrop-filter: blur(10px);
   padding: 15px 30px;
   border-radius: 10px;
-  border: 1px solid #9966ff;
+  border: 1px solid color-mix(in srgb, #9966ff 50%, transparent 50%);
   text-align: center;
 }
 
 .simon-hud-info {
   font-size: 18px;
-  color: #ffffff;
+  color: var(--ui-text-primary);
   margin-bottom: 8px;
 }
 
 .simon-message {
   font-size: 16px;
-  color: #ffff00;
+  color: var(--ui-warning);
   font-weight: bold;
 }
 
@@ -992,24 +1068,25 @@ canvas {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  background: rgba(40, 0, 20, 0.95);
-  border: 2px solid #ff6666;
+  background: color-mix(in srgb, var(--ui-danger) 5%, var(--ui-panel-bg) 95%);
+  border: 2px solid color-mix(in srgb, var(--ui-danger) 50%, transparent 50%);
   border-radius: 15px;
   padding: 40px;
   text-align: center;
-  box-shadow: 0 0 30px rgba(255, 100, 100, 0.5);
+  box-shadow: var(--ui-shadow-lg);
   z-index: 1000;
   pointer-events: auto;
+  backdrop-filter: blur(10px);
 }
 
 .simon-gameover h2 {
   font-size: 32px;
-  color: #ff6666;
+  color: var(--ui-danger);
   margin-bottom: 15px;
 }
 
 .simon-gameover p {
   font-size: 24px;
-  color: #ffffff;
+  color: var(--ui-text-primary);
   margin-bottom: 25px;
 }
