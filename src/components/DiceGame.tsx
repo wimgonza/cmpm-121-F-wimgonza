@@ -1,10 +1,12 @@
-import { useRef, useEffect, useCallback } from 'react';
+import React, { useRef, useEffect, useCallback } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
 import { Text } from '@react-three/drei';
 import { useGameStore } from '../hooks/useGameStore';
 import { useKeyboard } from '../hooks/useKeyboard';
+import { useTheme } from '../hooks/useTheme';
+
 
 // ============================================================================
 // TYPES & INTERFACES
@@ -23,6 +25,20 @@ interface DiceState {
 // ============================================================================
 // GAME CONSTANTS
 // ============================================================================
+const DICE_CONFIG = {
+  SIZE: 0.5,
+  HALF_SIZE: 0.251, // SIZE / 2 + 0.001
+  PHYSICS: {
+    WALL_HEIGHT: 2,
+    WALL_THICKNESS: 0.2,
+    SETTLE_THRESHOLD: 0.1,
+    PROXIMITY_RADIUS: 6,
+  },
+  TIMING: {
+    MAX_ROLL_TIME: 5,
+  }
+} as const;
+
 const DICE_FACES = [
   { normal: new THREE.Vector3(0, 1, 0), value: 1 },   // Top
   { normal: new THREE.Vector3(0, -1, 0), value: 6 },  // Bottom
@@ -30,44 +46,137 @@ const DICE_FACES = [
   { normal: new THREE.Vector3(-1, 0, 0), value: 4 },  // Left
   { normal: new THREE.Vector3(0, 0, 1), value: 2 },   // Front
   { normal: new THREE.Vector3(0, 0, -1), value: 5 },  // Back
-];
+] as const;
 
-const DICE_SIZE = 0.5;
-const DICE_HALF_SIZE = DICE_SIZE / 2 + 0.001;
-const WALL_HEIGHT = 2;
-const WALL_THICKNESS = 0.2;
-const MAX_ROLL_TIME = 5; // seconds
-const SETTLE_THRESHOLD = 0.1; // velocity threshold for "settled"
-const PROXIMITY_RADIUS = 6; // distance to trigger minigame
+const DICE_FACE_NUMBERS = [
+  { position: [0, DICE_CONFIG.HALF_SIZE, 0] as [number, number, number], rotation: [-Math.PI / 2, 0, 0] as [number, number, number], value: "1" },
+  { position: [0, -DICE_CONFIG.HALF_SIZE, 0] as [number, number, number], rotation: [Math.PI / 2, 0, 0] as [number, number, number], value: "6" },
+  { position: [DICE_CONFIG.HALF_SIZE, 0, 0] as [number, number, number], rotation: [0, Math.PI / 2, 0] as [number, number, number], value: "3" },
+  { position: [-DICE_CONFIG.HALF_SIZE, 0, 0] as [number, number, number], rotation: [0, -Math.PI / 2, 0] as [number, number, number], value: "4" },
+  { position: [0, 0, DICE_CONFIG.HALF_SIZE] as [number, number, number], rotation: [0, 0, 0] as [number, number, number], value: "2" },
+  { position: [0, 0, -DICE_CONFIG.HALF_SIZE] as [number, number, number], rotation: [0, Math.PI, 0] as [number, number, number], value: "5" },
+] as const;
 
 // ============================================================================
-// DICE VISUAL COMPONENT
+// HELPER FUNCTIONS
 // ============================================================================
+const getDiceValue = (quaternion: THREE.Quaternion): number => {
+  const up = new THREE.Vector3(0, 1, 0);
+  let maxDot = -Infinity;
+  let value = 1;
+
+  for (const face of DICE_FACES) {
+    const rotatedNormal = face.normal.clone().applyQuaternion(quaternion);
+    const dot = rotatedNormal.dot(up);
+    if (dot > maxDot) {
+      maxDot = dot;
+      value = face.value;
+    }
+  }
+
+  return value;
+};
+
+const createDiceBodies = (
+  world: CANNON.World, 
+  position: [number, number, number],
+  diceMaterial: CANNON.Material
+): DiceState[] => {
+  const diceStates: DiceState[] = [];
+  const diceShape = new CANNON.Box(new CANNON.Vec3(DICE_CONFIG.SIZE / 2, DICE_CONFIG.SIZE / 2, DICE_CONFIG.SIZE / 2));
+  const offsets = [[-0.6, 0], [0.6, 0]] as const;
+  
+  for (let i = 0; i < 2; i++) {
+    const diceBody = new CANNON.Body({
+      mass: 1,
+      position: new CANNON.Vec3(position[0] + offsets[i][0], position[1] + 0.5, position[2]),
+      shape: diceShape,
+      material: diceMaterial,
+    });
+    world.addBody(diceBody);
+    
+    diceStates.push({
+      body: diceBody,
+      mesh: null,
+      value: 1,
+    });
+  }
+  
+  return diceStates;
+};
+
+// ============================================================================
+// VISUAL COMPONENTS
+// ============================================================================
+
+// Dice Table Walls Component
+const DiceTableWalls = React.memo(({ 
+  position, 
+  zoneSize 
+}: { 
+  position: [number, number, number]; 
+  zoneSize: [number, number, number] 
+}) => (
+  <>
+    <mesh position={[position[0], position[1] + 1, position[2] - zoneSize[2] / 2]}>
+      <boxGeometry args={[zoneSize[0], 2, 0.05]} />
+      <meshBasicMaterial color="#ff4444" transparent opacity={0.15} />
+    </mesh>
+    <mesh position={[position[0], position[1] + 1, position[2] + zoneSize[2] / 2]}>
+      <boxGeometry args={[zoneSize[0], 2, 0.05]} />
+      <meshBasicMaterial color="#ff4444" transparent opacity={0.15} />
+    </mesh>
+    <mesh position={[position[0] + zoneSize[0] / 2, position[1] + 1, position[2]]}>
+      <boxGeometry args={[0.05, 2, zoneSize[2]]} />
+      <meshBasicMaterial color="#ff4444" transparent opacity={0.15} />
+    </mesh>
+    <mesh position={[position[0] - zoneSize[0] / 2, position[1] + 1, position[2]]}>
+      <boxGeometry args={[0.05, 2, zoneSize[2]]} />
+      <meshBasicMaterial color="#ff4444" transparent opacity={0.15} />
+    </mesh>
+  </>
+));
+
+DiceTableWalls.displayName = 'DiceTableWalls';
+
+// Dice Visual Component
 function Dice({ diceRef, initialPosition }: { 
   diceRef: (group: THREE.Group | null) => void;
   initialPosition: [number, number, number];
 }) {
+  const { colors, isDarkMode } = useTheme();
+
   return (
     <group ref={diceRef} position={initialPosition}>
       {/* Dice cube body */}
       <mesh>
-        <boxGeometry args={[DICE_SIZE, DICE_SIZE, DICE_SIZE]} />
-        <meshBasicMaterial color="#cc0000" />
+        <boxGeometry args={[DICE_CONFIG.SIZE, DICE_CONFIG.SIZE, DICE_CONFIG.SIZE]} />
+        <meshBasicMaterial color={colors.diceColor} />
       </mesh>
 
       {/* Dice edges */}
       <lineSegments>
-        <edgesGeometry args={[new THREE.BoxGeometry(DICE_SIZE, DICE_SIZE, DICE_SIZE)]} />
-        <lineBasicMaterial color="#880000" />
+        <edgesGeometry args={[new THREE.BoxGeometry(DICE_CONFIG.SIZE, DICE_CONFIG.SIZE, DICE_CONFIG.SIZE)]} />
+        <lineBasicMaterial 
+          color={isDarkMode ? "#aa0000" : "#880000"}
+        />
       </lineSegments>
 
       {/* Face numbers */}
-      <Text position={[0, DICE_HALF_SIZE, 0]} rotation={[-Math.PI / 2, 0, 0]} fontSize={0.25} color="white" anchorX="center" anchorY="middle" fontWeight="bold">1</Text>
-      <Text position={[0, -DICE_HALF_SIZE, 0]} rotation={[Math.PI / 2, 0, 0]} fontSize={0.25} color="white" anchorX="center" anchorY="middle" fontWeight="bold">6</Text>
-      <Text position={[DICE_HALF_SIZE, 0, 0]} rotation={[0, Math.PI / 2, 0]} fontSize={0.25} color="white" anchorX="center" anchorY="middle" fontWeight="bold">3</Text>
-      <Text position={[-DICE_HALF_SIZE, 0, 0]} rotation={[0, -Math.PI / 2, 0]} fontSize={0.25} color="white" anchorX="center" anchorY="middle" fontWeight="bold">4</Text>
-      <Text position={[0, 0, DICE_HALF_SIZE]} rotation={[0, 0, 0]} fontSize={0.25} color="white" anchorX="center" anchorY="middle" fontWeight="bold">2</Text>
-      <Text position={[0, 0, -DICE_HALF_SIZE]} rotation={[0, Math.PI, 0]} fontSize={0.25} color="white" anchorX="center" anchorY="middle" fontWeight="bold">5</Text>
+      {DICE_FACE_NUMBERS.map((face, i) => (
+        <Text
+          key={i}
+          position={face.position}
+          rotation={face.rotation}
+          fontSize={0.25}
+          color="white"
+          anchorX="center"
+          anchorY="middle"
+          fontWeight="bold"
+        >
+          {face.value}
+        </Text>
+      ))}
     </group>
   );
 }
@@ -81,6 +190,7 @@ export function DiceGame({ position, zoneSize }: DiceGameProps) {
   // --------------------------------------------------------------------------
   const { camera, gl } = useThree();
   const { keys, resetInteract } = useKeyboard();
+  const { isDarkMode } = useTheme();
   
   // PHYSICS & GAME STATE REFERENCES
   // --------------------------------------------------------------------------
@@ -113,28 +223,9 @@ export function DiceGame({ position, zoneSize }: DiceGameProps) {
   } = useGameStore();
 
   // ==========================================================================
-  // GAME FLOW FUNCTIONS
+  // GAME LOGIC FUNCTIONS
   // ==========================================================================
   
-  // DICE VALUE CALCULATION
-  // --------------------------------------------------------------------------
-  const getDiceValue = (quaternion: THREE.Quaternion): number => {
-    const up = new THREE.Vector3(0, 1, 0);
-    let maxDot = -Infinity;
-    let value = 1;
-
-    for (const face of DICE_FACES) {
-      const rotatedNormal = face.normal.clone().applyQuaternion(quaternion);
-      const dot = rotatedNormal.dot(up);
-      if (dot > maxDot) {
-        maxDot = dot;
-        value = face.value;
-      }
-    }
-
-    return value;
-  };
-
   // DICE ROLL EXECUTION
   // --------------------------------------------------------------------------
   const executeRoll = useCallback(() => {
@@ -175,6 +266,125 @@ export function DiceGame({ position, zoneSize }: DiceGameProps) {
       );
     });
   }, [position, setDiceResult, setIsRolling]);
+
+  // RESULT PROCESSING
+  // --------------------------------------------------------------------------
+  const processRollResult = useCallback((newValues: number[]) => {
+    hasSettledRef.current = true;
+    setIsRolling(false);
+    
+    // Calculate and store result
+    const total = newValues[0] + newValues[1];
+    const result = {
+      dice1: newValues[0],
+      dice2: newValues[1],
+      dice3: 0, // For compatibility with craps
+      total,
+    };
+    
+    setDiceResult(result);
+    
+    // Check bet result
+    const bet = lastBetForResult;
+    const amount = lastBetAmountForResult;
+    
+    if (bet === total) {
+      const winnings = amount * 2;
+      addMoney(winnings);
+    }
+    
+    // Clear bet
+    setCurrentBet(null);
+    setBetAmount(0);
+  }, [setDiceResult, setIsRolling, addMoney, lastBetForResult, lastBetAmountForResult, setCurrentBet, setBetAmount]);
+
+  // PROXIMITY CHECK LOGIC
+  // --------------------------------------------------------------------------
+  const handleProximityCheck = useCallback(() => {
+    const playerPos = camera.position;
+    const zoneCenter = new THREE.Vector3(position[0], position[1], position[2]);
+    const distance = playerPos.distanceTo(zoneCenter);
+    
+    const isNear = distance < DICE_CONFIG.PHYSICS.PROXIMITY_RADIUS;
+    if (isNear !== isNearMiniGame) {
+      setIsNearMiniGame(isNear);
+      if (!isNear) {
+        setIsMiniGameActive(false);
+        setCurrentBet(null);
+        setBetAmount(0);
+      }
+    }
+    
+    // Add isMiniGameActive to the condition
+    if (isNear && keys.current.interact && isLocked && !isMiniGameActive) {
+      resetInteract();
+      setIsMiniGameActive(true);
+      document.exitPointerLock();
+    }
+  }, [
+    camera, 
+    position, 
+    isNearMiniGame, 
+    isLocked, 
+    keys, 
+    resetInteract, 
+    setIsNearMiniGame, 
+    setIsMiniGameActive, 
+    setCurrentBet, 
+    setBetAmount,
+    isMiniGameActive
+  ]);
+
+  // ROLLING PHYSICS UPDATE
+  // --------------------------------------------------------------------------
+  const handleRollingPhysics = useCallback((delta: number) => {
+    if (!isRolling) return;
+    
+    rollTimeRef.current += delta;
+    let allSettled = true;
+    const newValues: number[] = [];
+
+    diceStatesRef.current.forEach((dice) => {
+      // Update mesh position
+      if (dice.mesh) {
+        dice.mesh.position.copy(dice.body.position as unknown as THREE.Vector3);
+        dice.mesh.quaternion.copy(dice.body.quaternion as unknown as THREE.Quaternion);
+      }
+
+      // Check if dice has settled
+      const speed = dice.body.velocity.length();
+      const angularSpeed = dice.body.angularVelocity.length();
+      
+      if (speed > DICE_CONFIG.PHYSICS.SETTLE_THRESHOLD || angularSpeed > DICE_CONFIG.PHYSICS.SETTLE_THRESHOLD) {
+        allSettled = false;
+      }
+
+      // Calculate current face value
+      const quat = new THREE.Quaternion(
+        dice.body.quaternion.x,
+        dice.body.quaternion.y,
+        dice.body.quaternion.z,
+        dice.body.quaternion.w
+      );
+      newValues.push(getDiceValue(quat));
+    });
+
+    // Settle detection
+    if ((allSettled || rollTimeRef.current > DICE_CONFIG.TIMING.MAX_ROLL_TIME) && !hasSettledRef.current) {
+      processRollResult(newValues);
+    }
+  }, [isRolling, processRollResult]);
+
+  // UPDATE DICE MESHES HELPER
+  // --------------------------------------------------------------------------
+  const updateDiceMeshes = useCallback(() => {
+    diceStatesRef.current.forEach((dice) => {
+      if (dice.mesh) {
+        dice.mesh.position.copy(dice.body.position as unknown as THREE.Vector3);
+        dice.mesh.quaternion.copy(dice.body.quaternion as unknown as THREE.Quaternion);
+      }
+    });
+  }, []);
 
   // ==========================================================================
   // USE EFFECTS
@@ -229,10 +439,7 @@ export function DiceGame({ position, zoneSize }: DiceGameProps) {
     });
     world.addContactMaterial(diceWallContact);
 
-    // ========================================================================
     // ENVIRONMENT BODIES
-    // ========================================================================
-    
     // Ground
     const groundBody = new CANNON.Body({
       mass: 0,
@@ -245,59 +452,38 @@ export function DiceGame({ position, zoneSize }: DiceGameProps) {
     // Walls (containment)
     const northWall = new CANNON.Body({
       mass: 0,
-      position: new CANNON.Vec3(position[0], position[1] + WALL_HEIGHT / 2, position[2] - zoneSize[2] / 2),
-      shape: new CANNON.Box(new CANNON.Vec3(zoneSize[0] / 2, WALL_HEIGHT / 2, WALL_THICKNESS / 2)),
+      position: new CANNON.Vec3(position[0], position[1] + DICE_CONFIG.PHYSICS.WALL_HEIGHT / 2, position[2] - zoneSize[2] / 2),
+      shape: new CANNON.Box(new CANNON.Vec3(zoneSize[0] / 2, DICE_CONFIG.PHYSICS.WALL_HEIGHT / 2, DICE_CONFIG.PHYSICS.WALL_THICKNESS / 2)),
       material: wallMaterial,
     });
     world.addBody(northWall);
     
     const southWall = new CANNON.Body({
       mass: 0,
-      position: new CANNON.Vec3(position[0], position[1] + WALL_HEIGHT / 2, position[2] + zoneSize[2] / 2),
-      shape: new CANNON.Box(new CANNON.Vec3(zoneSize[0] / 2, WALL_HEIGHT / 2, WALL_THICKNESS / 2)),
+      position: new CANNON.Vec3(position[0], position[1] + DICE_CONFIG.PHYSICS.WALL_HEIGHT / 2, position[2] + zoneSize[2] / 2),
+      shape: new CANNON.Box(new CANNON.Vec3(zoneSize[0] / 2, DICE_CONFIG.PHYSICS.WALL_HEIGHT / 2, DICE_CONFIG.PHYSICS.WALL_THICKNESS / 2)),
       material: wallMaterial,
     });
     world.addBody(southWall);
     
     const eastWall = new CANNON.Body({
       mass: 0,
-      position: new CANNON.Vec3(position[0] + zoneSize[0] / 2, position[1] + WALL_HEIGHT / 2, position[2]),
-      shape: new CANNON.Box(new CANNON.Vec3(WALL_THICKNESS / 2, WALL_HEIGHT / 2, zoneSize[2] / 2)),
+      position: new CANNON.Vec3(position[0] + zoneSize[0] / 2, position[1] + DICE_CONFIG.PHYSICS.WALL_HEIGHT / 2, position[2]),
+      shape: new CANNON.Box(new CANNON.Vec3(DICE_CONFIG.PHYSICS.WALL_THICKNESS / 2, DICE_CONFIG.PHYSICS.WALL_HEIGHT / 2, zoneSize[2] / 2)),
       material: wallMaterial,
     });
     world.addBody(eastWall);
     
     const westWall = new CANNON.Body({
       mass: 0,
-      position: new CANNON.Vec3(position[0] - zoneSize[0] / 2, position[1] + WALL_HEIGHT / 2, position[2]),
-      shape: new CANNON.Box(new CANNON.Vec3(WALL_THICKNESS / 2, WALL_HEIGHT / 2, zoneSize[2] / 2)),
+      position: new CANNON.Vec3(position[0] - zoneSize[0] / 2, position[1] + DICE_CONFIG.PHYSICS.WALL_HEIGHT / 2, position[2]),
+      shape: new CANNON.Box(new CANNON.Vec3(DICE_CONFIG.PHYSICS.WALL_THICKNESS / 2, DICE_CONFIG.PHYSICS.WALL_HEIGHT / 2, zoneSize[2] / 2)),
       material: wallMaterial,
     });
     world.addBody(westWall);
 
-    // ========================================================================
     // DICE BODIES
-    // ========================================================================
-    const diceShape = new CANNON.Box(new CANNON.Vec3(DICE_SIZE / 2, DICE_SIZE / 2, DICE_SIZE / 2));
-    
-    const diceStates: DiceState[] = [];
-    const offsets = [[-0.6, 0], [0.6, 0]]; // Two dice side by side
-    
-    for (let i = 0; i < 2; i++) {
-      const diceBody = new CANNON.Body({
-        mass: 1,
-        position: new CANNON.Vec3(position[0] + offsets[i][0], position[1] + 0.5, position[2] + offsets[i][1]),
-        shape: diceShape,
-        material: diceMaterial,
-      });
-      world.addBody(diceBody);
-      
-      diceStates.push({
-        body: diceBody,
-        mesh: null,
-        value: 1, // Default value
-      });
-    }
+    const diceStates = createDiceBodies(world, position, diceMaterial);
 
     // Store references
     worldRef.current = world;
@@ -326,106 +512,17 @@ export function DiceGame({ position, zoneSize }: DiceGameProps) {
     if (currentRoom !== 'minigame1') return;
     
     // PROXIMITY CHECK & GAME ENTRY
-    // ------------------------------------------------------------------------
-    const playerPos = camera.position;
-    const zoneCenter = new THREE.Vector3(position[0], position[1], position[2]);
-    const distance = playerPos.distanceTo(zoneCenter);
+    handleProximityCheck();
     
-    const isNear = distance < PROXIMITY_RADIUS;
-    if (isNear !== isNearMiniGame) {
-      setIsNearMiniGame(isNear);
-      if (!isNear) {
-        setIsMiniGameActive(false);
-        setCurrentBet(null);
-        setBetAmount(0);
-      }
-    }
-
-    // Activate minigame on interact
-    if (isNear && keys.current.interact && isLocked && !isMiniGameActive) {
-      resetInteract();
-      setIsMiniGameActive(true);
-      document.exitPointerLock();
-    }
-
-    // PHYSICS SIMULATION (During Rolling)
-    // ------------------------------------------------------------------------
-    if (worldRef.current && isRolling) {
-      worldRef.current.step(1 / 60, delta, 3);
-      rollTimeRef.current += delta;
-
-      let allSettled = true;
-      const newValues: number[] = [];
-
-      diceStatesRef.current.forEach((dice) => {
-        // Update mesh position
-        if (dice.mesh) {
-          dice.mesh.position.copy(dice.body.position as unknown as THREE.Vector3);
-          dice.mesh.quaternion.copy(dice.body.quaternion as unknown as THREE.Quaternion);
-        }
-
-        // Check if dice has settled
-        const speed = dice.body.velocity.length();
-        const angularSpeed = dice.body.angularVelocity.length();
-        
-        if (speed > SETTLE_THRESHOLD || angularSpeed > SETTLE_THRESHOLD) {
-          allSettled = false;
-        }
-
-        // Calculate current face value
-        const quat = new THREE.Quaternion(
-          dice.body.quaternion.x,
-          dice.body.quaternion.y,
-          dice.body.quaternion.z,
-          dice.body.quaternion.w
-        );
-        newValues.push(getDiceValue(quat));
-      });
-
-      // SETTLE DETECTION & RESULT PROCESSING
-      // ----------------------------------------------------------------------
-      if ((allSettled || rollTimeRef.current > MAX_ROLL_TIME) && !hasSettledRef.current) {
-        hasSettledRef.current = true;
-        setIsRolling(false);
-        
-        // Calculate and store result
-        const total = newValues[0] + newValues[1];
-        const result = {
-          dice1: newValues[0],
-          dice2: newValues[1],
-          dice3: 0, // For compatibility with craps
-          total,
-        };
-        
-        setDiceResult(result);
-        
-        // Check bet result
-        const bet = lastBetForResult;
-        const amount = lastBetAmountForResult;
-        
-        if (bet === total) {
-          const winnings = amount * 2;
-          addMoney(winnings);
-        }
-        
-        // Clear bet
-        setCurrentBet(null);
-        setBetAmount(0);
-      }
-    }
-
-    // PHYSICS SIMULATION (Idle State)
-    // ------------------------------------------------------------------------
-    if (worldRef.current && !isRolling) {
+    // PHYSICS SIMULATION
+    if (worldRef.current) {
       worldRef.current.step(1 / 60, delta, 3);
       
-      // Update mesh positions
-      diceStatesRef.current.forEach((dice) => {
-        if (dice.mesh) {
-          dice.mesh.position.copy(dice.body.position as unknown as THREE.Vector3);
-          dice.mesh.quaternion.copy(dice.body.quaternion as unknown as THREE.Quaternion);
-        }
-      });
+      if (isRolling) {
+        handleRollingPhysics(delta);
+      } else {
+        updateDiceMeshes();
+      }
     }
   });
 
@@ -444,23 +541,18 @@ export function DiceGame({ position, zoneSize }: DiceGameProps) {
   // ==========================================================================
   return (
     <group>
-      {/* Containment Walls (Visual) */}
-      <mesh position={[position[0], position[1] + 1, position[2] - zoneSize[2] / 2]}>
-        <boxGeometry args={[zoneSize[0], 2, 0.05]} />
-        <meshBasicMaterial color="#ff4444" transparent opacity={0.15} />
+      {/* Table Surface */}
+      <mesh position={[position[0], position[1] + 0.01, position[2]]} rotation={[-Math.PI / 2, 0, 0]}>
+        <planeGeometry args={[zoneSize[0], zoneSize[2]]} />
+        <meshBasicMaterial 
+          color={isDarkMode ? "#ff8888" : "#ff6666"} 
+          transparent 
+          opacity={0.2} 
+        />
       </mesh>
-      <mesh position={[position[0], position[1] + 1, position[2] + zoneSize[2] / 2]}>
-        <boxGeometry args={[zoneSize[0], 2, 0.05]} />
-        <meshBasicMaterial color="#ff4444" transparent opacity={0.15} />
-      </mesh>
-      <mesh position={[position[0] + zoneSize[0] / 2, position[1] + 1, position[2]]}>
-        <boxGeometry args={[0.05, 2, zoneSize[2]]} />
-        <meshBasicMaterial color="#ff4444" transparent opacity={0.15} />
-      </mesh>
-      <mesh position={[position[0] - zoneSize[0] / 2, position[1] + 1, position[2]]}>
-        <boxGeometry args={[0.05, 2, zoneSize[2]]} />
-        <meshBasicMaterial color="#ff4444" transparent opacity={0.15} />
-      </mesh>
+
+      {/* Containment Walls */}
+      <DiceTableWalls position={position} zoneSize={zoneSize} />
 
       {/* Dice */}
       {[0, 1].map((i) => (

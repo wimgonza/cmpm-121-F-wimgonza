@@ -1,9 +1,10 @@
-import { useRef, useEffect, useMemo, useCallback } from 'react';
+import React, { useRef, useEffect, useMemo, useCallback } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
 import { useGameStore } from '../hooks/useGameStore';
 import { useKeyboard } from '../hooks/useKeyboard';
+import { useTheme } from '../hooks/useTheme';
 
 // ============================================================================
 // TYPES & INTERFACES
@@ -16,55 +17,315 @@ interface BasketballGameProps {
 // ============================================================================
 // GAME CONSTANTS
 // ============================================================================
-const HOOP_RADIUS = 0.45;
-const HOOP_HEIGHT = 3.05;
-const BACKBOARD_WIDTH = 1.8;
-const BACKBOARD_HEIGHT = 1.2;
-const BALL_RADIUS = 0.12;
-const WALL_HEIGHT = 8;
-const WALL_THICKNESS = 0.1;
-const THROW_POWER_MULTIPLIER = 6;
-const THROW_POWER_OFFSET = 4;
-const MAX_PICKUP_DISTANCE = 3;
-const GROUNDED_CHECK_TIME = 1;
+const BASKETBALL_CONFIG = {
+  PHYSICS: {
+    WALL_HEIGHT: 8,
+    WALL_THICKNESS: 0.1,
+    GRAVITY: -15,
+    MAX_PICKUP_DISTANCE: 3,
+    GROUNDED_CHECK_TIME: 1,
+    SETTLE_THRESHOLD: 0.5,
+    PROXIMITY_RADIUS: 8,
+  },
+  HOOP: {
+    RADIUS: 0.45,
+    HEIGHT: 3.05,
+    BACKBOARD_WIDTH: 1.8,
+    BACKBOARD_HEIGHT: 1.2,
+    RIM_SEGMENTS: 12,
+    RIM_SPHERE_RADIUS: 0.03,
+  },
+  BALL: {
+    RADIUS: 0.12,
+    MASS: 0.6,
+    DAMPING: {
+      LINEAR: 0.1,
+      ANGULAR: 0.3,
+    },
+    FRICTION: 0.7,
+    RESTITUTION: 0.6,
+  },
+  THROWING: {
+    POWER_MULTIPLIER: 6,
+    POWER_OFFSET: 4,
+    POWER_INCREMENT: 80,
+    MAX_POWER: 100,
+  },
+  TRAJECTORY: {
+    MAX_POINTS: 200,
+    MIN_DISTANCE: 0.05,
+  },
+} as const;
+
+// ============================================================================
+// HELPER FUNCTIONS
+// ============================================================================
+
+const createEnvironmentBodies = (
+  world: CANNON.World,
+  position: [number, number, number],
+  zoneSize: [number, number, number],
+  wallMaterial: CANNON.Material,
+  groundMaterial: CANNON.Material
+) => {
+  // Ground
+  const groundBody = new CANNON.Body({
+    mass: 0,
+    position: new CANNON.Vec3(position[0], position[1], position[2]),
+    shape: new CANNON.Box(new CANNON.Vec3(zoneSize[0] / 2, 0.1, zoneSize[2] / 2)),
+    material: groundMaterial,
+  });
+  world.addBody(groundBody);
+
+  // Walls
+  const walls = [
+    {
+      position: new CANNON.Vec3(position[0], position[1] + BASKETBALL_CONFIG.PHYSICS.WALL_HEIGHT / 2, position[2] - zoneSize[2] / 2),
+      shape: new CANNON.Box(new CANNON.Vec3(zoneSize[0] / 2, BASKETBALL_CONFIG.PHYSICS.WALL_HEIGHT / 2, BASKETBALL_CONFIG.PHYSICS.WALL_THICKNESS)),
+    },
+    {
+      position: new CANNON.Vec3(position[0], position[1] + BASKETBALL_CONFIG.PHYSICS.WALL_HEIGHT / 2, position[2] + zoneSize[2] / 2),
+      shape: new CANNON.Box(new CANNON.Vec3(zoneSize[0] / 2, BASKETBALL_CONFIG.PHYSICS.WALL_HEIGHT / 2, BASKETBALL_CONFIG.PHYSICS.WALL_THICKNESS)),
+    },
+    {
+      position: new CANNON.Vec3(position[0] + zoneSize[0] / 2, position[1] + BASKETBALL_CONFIG.PHYSICS.WALL_HEIGHT / 2, position[2]),
+      shape: new CANNON.Box(new CANNON.Vec3(BASKETBALL_CONFIG.PHYSICS.WALL_THICKNESS, BASKETBALL_CONFIG.PHYSICS.WALL_HEIGHT / 2, zoneSize[2] / 2)),
+    },
+    {
+      position: new CANNON.Vec3(position[0] - zoneSize[0] / 2, position[1] + BASKETBALL_CONFIG.PHYSICS.WALL_HEIGHT / 2, position[2]),
+      shape: new CANNON.Box(new CANNON.Vec3(BASKETBALL_CONFIG.PHYSICS.WALL_THICKNESS, BASKETBALL_CONFIG.PHYSICS.WALL_HEIGHT / 2, zoneSize[2] / 2)),
+    },
+  ];
+
+  walls.forEach(wall => {
+    const wallBody = new CANNON.Body({
+      mass: 0,
+      position: wall.position,
+      shape: wall.shape,
+      material: wallMaterial,
+    });
+    world.addBody(wallBody);
+  });
+
+  // Ceiling
+  const ceiling = new CANNON.Body({
+    mass: 0,
+    position: new CANNON.Vec3(position[0], position[1] + BASKETBALL_CONFIG.PHYSICS.WALL_HEIGHT, position[2]),
+    shape: new CANNON.Box(new CANNON.Vec3(zoneSize[0] / 2, 0.1, zoneSize[2] / 2)),
+    material: wallMaterial,
+  });
+  world.addBody(ceiling);
+
+  return groundBody;
+};
+
+const createHoopPhysics = (
+  world: CANNON.World,
+  hoopPosition: [number, number, number],
+  wallMaterial: CANNON.Material
+) => {
+  // Backboard
+  const backboard = new CANNON.Body({
+    mass: 0,
+    position: new CANNON.Vec3(hoopPosition[0], hoopPosition[1] + 3.35, hoopPosition[2] - 0.1),
+    shape: new CANNON.Box(new CANNON.Vec3(0.9, 0.6, 0.05)),
+    material: wallMaterial,
+  });
+  world.addBody(backboard);
+
+  // Rim segments
+  const rimRadius = BASKETBALL_CONFIG.HOOP.RADIUS;
+  const rimY = hoopPosition[1] + BASKETBALL_CONFIG.HOOP.HEIGHT;
+  const rimZ = hoopPosition[2] + 0.3;
+
+  for (let i = 0; i < BASKETBALL_CONFIG.HOOP.RIM_SEGMENTS; i++) {
+    const angle = (i / BASKETBALL_CONFIG.HOOP.RIM_SEGMENTS) * Math.PI * 2;
+    const rimX = hoopPosition[0] + Math.cos(angle) * rimRadius;
+    const rimZPos = rimZ + Math.sin(angle) * rimRadius;
+
+    const rimSegment = new CANNON.Body({
+      mass: 0,
+      position: new CANNON.Vec3(rimX, rimY, rimZPos),
+      shape: new CANNON.Sphere(BASKETBALL_CONFIG.HOOP.RIM_SPHERE_RADIUS),
+      material: wallMaterial,
+    });
+    world.addBody(rimSegment);
+  }
+};
+
+const createBallBody = (
+  world: CANNON.World,
+  position: [number, number, number],
+  material: CANNON.Material
+) => {
+  const ballBody = new CANNON.Body({
+    mass: BASKETBALL_CONFIG.BALL.MASS,
+    position: new CANNON.Vec3(position[0], position[1], position[2]),
+    shape: new CANNON.Sphere(BASKETBALL_CONFIG.BALL.RADIUS),
+    material: material,
+    linearDamping: BASKETBALL_CONFIG.BALL.DAMPING.LINEAR,
+    angularDamping: BASKETBALL_CONFIG.BALL.DAMPING.ANGULAR,
+  });
+  world.addBody(ballBody);
+  return ballBody;
+};
 
 // ============================================================================
 // VISUAL COMPONENTS
 // ============================================================================
 
+// Court Boundary Walls Component
+const CourtBoundaries = React.memo(({ 
+  position, 
+  zoneSize,
+  isDarkMode
+}: { 
+  position: [number, number, number]; 
+  zoneSize: [number, number, number];
+  isDarkMode: boolean;
+}) => (
+  <>
+    <mesh position={[position[0], position[1] + 4, position[2] - zoneSize[2] / 2]}>
+      <boxGeometry args={[zoneSize[0], 8, 0.05]} />
+      <meshBasicMaterial 
+        color={isDarkMode ? "#88ffff" : "#44ffff"}
+        transparent 
+        opacity={0.15} 
+      />
+    </mesh>
+    <mesh position={[position[0], position[1] + 4, position[2] + zoneSize[2] / 2]}>
+      <boxGeometry args={[zoneSize[0], 8, 0.05]} />
+      <meshBasicMaterial 
+        color={isDarkMode ? "#88ffff" : "#44ffff"}
+        transparent 
+        opacity={0.15} 
+      />
+    </mesh>
+    <mesh position={[position[0] + zoneSize[0] / 2, position[1] + 4, position[2]]}>
+      <boxGeometry args={[0.05, 8, zoneSize[2]]} />
+      <meshBasicMaterial 
+        color={isDarkMode ? "#88ffff" : "#44ffff"}
+        transparent 
+        opacity={0.15} 
+      />
+    </mesh>
+    <mesh position={[position[0] - zoneSize[0] / 2, position[1] + 4, position[2]]}>
+      <boxGeometry args={[0.05, 8, zoneSize[2]]} />
+      <meshBasicMaterial 
+        color={isDarkMode ? "#88ffff" : "#44ffff"}
+        transparent 
+        opacity={0.15} 
+      />
+    </mesh>
+  </>
+));
+
+CourtBoundaries.displayName = 'CourtBoundaries';
+
+// Court Markings Component
+const CourtMarkings = React.memo(({ 
+  hoopPosition,
+  position,
+  zoneSize,
+  isDarkMode
+}: { 
+  hoopPosition: [number, number, number];
+  position: [number, number, number];
+  zoneSize: [number, number, number];
+  isDarkMode: boolean;
+}) => (
+  <>
+    {/* Pickup Circle */}
+    <mesh position={[position[0], position[1] + 0.01, position[2] + zoneSize[2] / 2 - 1.5]} rotation={[-Math.PI / 2, 0, 0]}>
+      <ringGeometry args={[0.3, 0.4, 32]} />
+      <meshBasicMaterial 
+        color={isDarkMode ? "#88ff88" : "#00ff00"}
+        transparent 
+        opacity={0.5} 
+      />
+    </mesh>
+
+    {/* Three-point Line (Arc) */}
+    <mesh position={[hoopPosition[0], position[1] + 0.01, hoopPosition[2] + 0.5]} rotation={[-Math.PI / 2, 0, Math.PI]}>
+      <ringGeometry args={[3, 3.1, 32, 1, 0, Math.PI]} />
+      <meshBasicMaterial 
+        color={isDarkMode ? "#cccccc" : "#ffffff"}
+        transparent 
+        opacity={0.3} 
+      />
+    </mesh>
+
+    {/* Free-throw Line */}
+    <mesh position={[hoopPosition[0], position[1] + 0.01, hoopPosition[2] + 7]} rotation={[-Math.PI / 2, 0, 0]}>
+      <planeGeometry args={[3.6, 0.1]} />
+      <meshBasicMaterial 
+        color={isDarkMode ? "#cccccc" : "#ffffff"}
+        transparent 
+        opacity={0.5} 
+      />
+    </mesh>
+
+    {/* Court Floor */}
+    <mesh position={[position[0], position[1] + 0.01, position[2]]} rotation={[-Math.PI / 2, 0, 0]}>
+      <planeGeometry args={[zoneSize[0], zoneSize[2]]} />
+      <meshBasicMaterial 
+        color={isDarkMode ? "#224444" : "#44aaff"}
+        transparent 
+        opacity={0.1} 
+      />
+    </mesh>
+  </>
+));
+
+CourtMarkings.displayName = 'CourtMarkings';
+
 // HOOP COMPONENT
 // ----------------------------------------------------------------------------
 function Hoop({ position }: { position: [number, number, number] }) {
+  const { isDarkMode } = useTheme();
+
   return (
     <group position={position} rotation={[0, Math.PI, 0]}>
       {/* Backboard */}
-      <mesh position={[0, HOOP_HEIGHT + 0.3, 0.1]}>
-        <boxGeometry args={[BACKBOARD_WIDTH, BACKBOARD_HEIGHT, 0.05]} />
-        <meshBasicMaterial color="#ffffff" transparent opacity={0.8} />
+      <mesh position={[0, BASKETBALL_CONFIG.HOOP.HEIGHT + 0.3, 0.1]}>
+        <boxGeometry args={[BASKETBALL_CONFIG.HOOP.BACKBOARD_WIDTH, BASKETBALL_CONFIG.HOOP.BACKBOARD_HEIGHT, 0.05]} />
+        <meshBasicMaterial 
+          color={isDarkMode ? "#444444" : "#ffffff"}
+          transparent 
+          opacity={isDarkMode ? 0.9 : 0.8} 
+        />
       </mesh>
 
       {/* Backboard outline */}
-      <lineSegments position={[0, HOOP_HEIGHT + 0.3, 0.12]}>
-        <edgesGeometry args={[new THREE.BoxGeometry(BACKBOARD_WIDTH, BACKBOARD_HEIGHT, 0.05)]} />
-        <lineBasicMaterial color="#ff4444" linewidth={2} />
+      <lineSegments position={[0, BASKETBALL_CONFIG.HOOP.HEIGHT + 0.3, 0.12]}>
+        <edgesGeometry args={[new THREE.BoxGeometry(BASKETBALL_CONFIG.HOOP.BACKBOARD_WIDTH, BASKETBALL_CONFIG.HOOP.BACKBOARD_HEIGHT, 0.05)]} />
+        <lineBasicMaterial 
+          color={isDarkMode ? "#ff8888" : "#ff4444"}
+          linewidth={2} 
+        />
       </lineSegments>
 
       {/* Rim */}
-      <mesh position={[0, HOOP_HEIGHT, -0.3]} rotation={[Math.PI / 2, 0, 0]}>
-        <torusGeometry args={[HOOP_RADIUS, 0.02, 16, 32]} />
+      <mesh position={[0, BASKETBALL_CONFIG.HOOP.HEIGHT, -0.3]} rotation={[Math.PI / 2, 0, 0]}>
+        <torusGeometry args={[BASKETBALL_CONFIG.HOOP.RADIUS, 0.02, 16, 32]} />
         <meshBasicMaterial color="#ff6600" />
       </mesh>
 
       {/* Pole */}
-      <mesh position={[0, HOOP_HEIGHT / 2, 0.2]}>
-        <cylinderGeometry args={[0.08, 0.08, HOOP_HEIGHT, 8]} />
-        <meshBasicMaterial color="#333333" />
+      <mesh position={[0, BASKETBALL_CONFIG.HOOP.HEIGHT / 2, 0.2]}>
+        <cylinderGeometry args={[0.08, 0.08, BASKETBALL_CONFIG.HOOP.HEIGHT, 8]} />
+        <meshBasicMaterial color={isDarkMode ? "#555555" : "#333333"} />
       </mesh>
 
       {/* Net visualization */}
-      <mesh position={[0, HOOP_HEIGHT - 0.3, -0.3]}>
-        <cylinderGeometry args={[HOOP_RADIUS, HOOP_RADIUS * 0.7, 0.5, 16, 1, true]} />
-        <meshBasicMaterial color="#ffffff" transparent opacity={0.3} wireframe />
+      <mesh position={[0, BASKETBALL_CONFIG.HOOP.HEIGHT - 0.3, -0.3]}>
+        <cylinderGeometry args={[BASKETBALL_CONFIG.HOOP.RADIUS, BASKETBALL_CONFIG.HOOP.RADIUS * 0.7, 0.5, 16, 1, true]} />
+        <meshBasicMaterial 
+          color={isDarkMode ? "#cccccc" : "#ffffff"}
+          transparent 
+          opacity={isDarkMode ? 0.4 : 0.3} 
+          wireframe 
+        />
       </mesh>
     </group>
   );
@@ -75,11 +336,11 @@ function Hoop({ position }: { position: [number, number, number] }) {
 function Basketball({ ballRef }: { ballRef: (mesh: THREE.Mesh | null) => void }) {
   return (
     <mesh ref={ballRef}>
-      <sphereGeometry args={[BALL_RADIUS, 32, 32]} />
+      <sphereGeometry args={[BASKETBALL_CONFIG.BALL.RADIUS, 32, 32]} />
       <meshBasicMaterial color="#ff6600" />
 
       <lineSegments>
-        <edgesGeometry args={[new THREE.SphereGeometry(BALL_RADIUS + 0.001, 8, 8)]} />
+        <edgesGeometry args={[new THREE.SphereGeometry(BASKETBALL_CONFIG.BALL.RADIUS + 0.001, 8, 8)]} />
         <lineBasicMaterial color="#333333" />
       </lineSegments>
     </mesh>
@@ -94,6 +355,7 @@ export function BasketballGame({ position, zoneSize }: BasketballGameProps) {
   // --------------------------------------------------------------------------
   const { camera, gl } = useThree();
   const { keys, resetInteract } = useKeyboard();
+  const { isDarkMode } = useTheme();
 
   // GAME STORE STATE
   // --------------------------------------------------------------------------
@@ -154,13 +416,12 @@ export function BasketballGame({ position, zoneSize }: BasketballGameProps) {
   ], [position, zoneSize]);
 
   // ==========================================================================
-  // GAME FLOW FUNCTIONS
+  // GAME LOGIC FUNCTIONS
   // ==========================================================================
 
   // EXIT / ENTRY HANDLING
   // --------------------------------------------------------------------------
   const exitGame = useCallback(() => {
-    // Don't refund bet - money already spent
     exitBasketballZone();
     resetBasketballGame();
     gl.domElement.requestPointerLock();
@@ -188,7 +449,7 @@ export function BasketballGame({ position, zoneSize }: BasketballGameProps) {
     direction.normalize();
 
     // Apply velocity based on charge power
-    const power = (throwPower / 100) * THROW_POWER_MULTIPLIER + THROW_POWER_OFFSET;
+    const power = (throwPower / 100) * BASKETBALL_CONFIG.THROWING.POWER_MULTIPLIER + BASKETBALL_CONFIG.THROWING.POWER_OFFSET;
     ballBodyRef.current.velocity.set(
       direction.x * power,
       direction.y * power + 3,
@@ -221,7 +482,7 @@ export function BasketballGame({ position, zoneSize }: BasketballGameProps) {
     const ballPos = ballBodyRef.current.position;
     const hoopCenter = {
       x: hoopPosition[0],
-      y: hoopPosition[1] + HOOP_HEIGHT,
+      y: hoopPosition[1] + BASKETBALL_CONFIG.HOOP.HEIGHT,
       z: hoopPosition[2] + 0.3,
     };
 
@@ -244,6 +505,126 @@ export function BasketballGame({ position, zoneSize }: BasketballGameProps) {
 
     lastBallYRef.current = currentY;
   }, [addMoney, basketballBetAmount, basketballBetPlaced, hoopPosition, incrementBasketballScore]);
+
+  // PROXIMITY CHECK LOGIC
+  // --------------------------------------------------------------------------
+  const handleProximityCheck = useCallback(() => {
+    const playerPos = camera.position;
+    const zoneCenter = new THREE.Vector3(position[0], position[1], position[2]);
+    const distance = playerPos.distanceTo(zoneCenter);
+
+    const isNear = distance < BASKETBALL_CONFIG.PHYSICS.PROXIMITY_RADIUS;
+    if (isNear !== isNearBasketball) {
+      setIsNearBasketball(isNear);
+      if (!isNear && isBasketballActive) {
+        exitGame();
+      }
+    }
+
+    if (isNear && keys.current.interact && isLocked && !isBasketballActive) {
+      resetInteract();
+      enterBasketballZone();
+      document.exitPointerLock();
+    }
+  }, [camera, position, isNearBasketball, isLocked, keys, resetInteract, setIsNearBasketball, exitGame, isBasketballActive, enterBasketballZone]);
+
+  // THROW CHARGING LOGIC
+  // --------------------------------------------------------------------------
+  const handleThrowCharging = useCallback((delta: number) => {
+    if (isChargingThrow) {
+      setThrowPower(throwPower + delta * BASKETBALL_CONFIG.THROWING.POWER_INCREMENT);
+      if (throwPower >= BASKETBALL_CONFIG.THROWING.MAX_POWER) {
+        throwBall();
+      }
+    }
+  }, [isChargingThrow, throwPower, setThrowPower, throwBall]);
+
+  // BALL HOLDING LOGIC
+  // --------------------------------------------------------------------------
+  const handleBallHolding = useCallback(() => {
+    if (isHoldingBall && !hasThrownBallRef.current) {
+      const holdPos = camera.position.clone();
+      const forward = new THREE.Vector3(0, 0, -1);
+      forward.applyQuaternion(camera.quaternion);
+      holdPos.add(forward.multiplyScalar(0.8));
+      holdPos.y -= 0.3;
+
+      ballBodyRef.current!.position.set(holdPos.x, holdPos.y, holdPos.z);
+      ballBodyRef.current!.velocity.set(0, 0, 0);
+    }
+  }, [camera, isHoldingBall]);
+
+  // TRAJECTORY VISUALIZATION LOGIC
+  // --------------------------------------------------------------------------
+  const handleTrajectoryVisualization = useCallback(() => {
+    if (hasThrownBallRef.current && !isHoldingBall && ballBodyRef.current) {
+      const pos = new THREE.Vector3(
+        ballBodyRef.current.position.x,
+        ballBodyRef.current.position.y,
+        ballBodyRef.current.position.z,
+      );
+
+      const lastPos = trajectoryRef.current[trajectoryRef.current.length - 1];
+      if (!lastPos || pos.distanceTo(lastPos) > BASKETBALL_CONFIG.TRAJECTORY.MIN_DISTANCE) {
+        trajectoryRef.current.push(pos);
+        // Limit trajectory array size to prevent memory issues
+        if (trajectoryRef.current.length > BASKETBALL_CONFIG.TRAJECTORY.MAX_POINTS) {
+          trajectoryRef.current.shift();
+        }
+      }
+
+      if (trajectoryLineRef.current && trajectoryRef.current.length >= 2) {
+        const geometry = new THREE.BufferGeometry().setFromPoints(trajectoryRef.current);
+        trajectoryLineRef.current.geometry.dispose();
+        trajectoryLineRef.current.geometry = geometry;
+      }
+    }
+  }, [isHoldingBall]);
+
+  // BALL RESET LOGIC
+  // --------------------------------------------------------------------------
+  const handleBallReset = useCallback((delta: number) => {
+    if (!isHoldingBall && hasThrownBallRef.current && ballBodyRef.current) {
+      scoreCheckTimeRef.current += delta;
+      checkScore();
+
+      // Check if ball is grounded
+      const ballY = ballBodyRef.current.position.y;
+      const ballVelY = Math.abs(ballBodyRef.current.velocity.y);
+      const isOnGround = ballY < position[1] + 0.3 && ballVelY < BASKETBALL_CONFIG.PHYSICS.SETTLE_THRESHOLD;
+
+      if (isOnGround) {
+        ballGroundedTimeRef.current += delta;
+
+        // Reset ball after being grounded for configured time
+        if (ballGroundedTimeRef.current > BASKETBALL_CONFIG.PHYSICS.GROUNDED_CHECK_TIME) {
+          ballBodyRef.current.position.set(
+            ballInitialPosition[0],
+            ballInitialPosition[1],
+            ballInitialPosition[2],
+          );
+          ballBodyRef.current.velocity.set(0, 0, 0);
+          ballBodyRef.current.angularVelocity.set(0, 0, 0);
+
+          hasThrownBallRef.current = false;
+          hasScoreCheckedRef.current = false;
+          ballGroundedTimeRef.current = 0;
+          scoreCheckTimeRef.current = 0;
+        }
+      } else {
+        ballGroundedTimeRef.current = 0;
+      }
+    }
+  }, [isHoldingBall, checkScore, position, ballInitialPosition]);
+
+  // UPDATE BALL MESH HELPER
+  // --------------------------------------------------------------------------
+  const updateBallMesh = useCallback(() => {
+    if (ballMeshRef.current && ballBodyRef.current) {
+      ballMeshRef.current.position.copy(ballBodyRef.current.position as unknown as THREE.Vector3);
+      ballMeshRef.current.quaternion.copy(ballBodyRef.current.quaternion as unknown as THREE.Quaternion);
+    }
+  }, []);
 
   // ==========================================================================
   // USE EFFECTS
@@ -287,7 +668,7 @@ export function BasketballGame({ position, zoneSize }: BasketballGameProps) {
         const playerPos = camera.position.clone();
         const distance = ballPos.distanceTo(playerPos);
 
-        if (distance < MAX_PICKUP_DISTANCE) {
+        if (distance < BASKETBALL_CONFIG.PHYSICS.MAX_PICKUP_DISTANCE) {
           const success = removeMoney(basketballBetAmount);
           if (!success) return;
 
@@ -340,7 +721,7 @@ export function BasketballGame({ position, zoneSize }: BasketballGameProps) {
     if (currentRoom !== 'minigame2') return;
 
     const world = new CANNON.World();
-    world.gravity.set(0, -15, 0);
+    world.gravity.set(0, BASKETBALL_CONFIG.PHYSICS.GRAVITY, 0);
     world.broadphase = new CANNON.NaiveBroadphase();
 
     // Materials
@@ -350,8 +731,8 @@ export function BasketballGame({ position, zoneSize }: BasketballGameProps) {
 
     // Contact materials
     world.addContactMaterial(new CANNON.ContactMaterial(ballMaterial, groundMaterial, {
-      friction: 0.7,
-      restitution: 0.6,
+      friction: BASKETBALL_CONFIG.BALL.FRICTION,
+      restitution: BASKETBALL_CONFIG.BALL.RESTITUTION,
     }));
 
     world.addContactMaterial(new CANNON.ContactMaterial(ballMaterial, wallMaterial, {
@@ -360,103 +741,13 @@ export function BasketballGame({ position, zoneSize }: BasketballGameProps) {
     }));
 
     // ENVIRONMENT BODIES
-    // ------------------------------------------------------------------------
-
-    // Ground
-    const groundBody = new CANNON.Body({
-      mass: 0,
-      position: new CANNON.Vec3(position[0], position[1], position[2]),
-      shape: new CANNON.Box(new CANNON.Vec3(zoneSize[0] / 2, 0.1, zoneSize[2] / 2)),
-      material: groundMaterial,
-    });
-    world.addBody(groundBody);
-
-    // Walls
-    const northWall = new CANNON.Body({
-      mass: 0,
-      position: new CANNON.Vec3(position[0], position[1] + WALL_HEIGHT / 2, position[2] - zoneSize[2] / 2),
-      shape: new CANNON.Box(new CANNON.Vec3(zoneSize[0] / 2, WALL_HEIGHT / 2, WALL_THICKNESS)),
-      material: wallMaterial,
-    });
-    world.addBody(northWall);
-
-    const southWall = new CANNON.Body({
-      mass: 0,
-      position: new CANNON.Vec3(position[0], position[1] + WALL_HEIGHT / 2, position[2] + zoneSize[2] / 2),
-      shape: new CANNON.Box(new CANNON.Vec3(zoneSize[0] / 2, WALL_HEIGHT / 2, WALL_THICKNESS)),
-      material: wallMaterial,
-    });
-    world.addBody(southWall);
-
-    const eastWall = new CANNON.Body({
-      mass: 0,
-      position: new CANNON.Vec3(position[0] + zoneSize[0] / 2, position[1] + WALL_HEIGHT / 2, position[2]),
-      shape: new CANNON.Box(new CANNON.Vec3(WALL_THICKNESS, WALL_HEIGHT / 2, zoneSize[2] / 2)),
-      material: wallMaterial,
-    });
-    world.addBody(eastWall);
-
-    const westWall = new CANNON.Body({
-      mass: 0,
-      position: new CANNON.Vec3(position[0] - zoneSize[0] / 2, position[1] + WALL_HEIGHT / 2, position[2]),
-      shape: new CANNON.Box(new CANNON.Vec3(WALL_THICKNESS, WALL_HEIGHT / 2, zoneSize[2] / 2)),
-      material: wallMaterial,
-    });
-    world.addBody(westWall);
-
-    // Ceiling
-    const ceiling = new CANNON.Body({
-      mass: 0,
-      position: new CANNON.Vec3(position[0], position[1] + WALL_HEIGHT, position[2]),
-      shape: new CANNON.Box(new CANNON.Vec3(zoneSize[0] / 2, 0.1, zoneSize[2] / 2)),
-      material: wallMaterial,
-    });
-    world.addBody(ceiling);
+    createEnvironmentBodies(world, position, zoneSize, wallMaterial, groundMaterial);
 
     // HOOP PHYSICS
-    // ------------------------------------------------------------------------
-
-    // Backboard
-    const backboard = new CANNON.Body({
-      mass: 0,
-      position: new CANNON.Vec3(hoopPosition[0], hoopPosition[1] + 3.35, hoopPosition[2] - 0.1),
-      shape: new CANNON.Box(new CANNON.Vec3(0.9, 0.6, 0.05)),
-      material: wallMaterial,
-    });
-    world.addBody(backboard);
-
-    // Rim (segmented spheres for collision)
-    const rimRadius = HOOP_RADIUS;
-    const rimY = hoopPosition[1] + HOOP_HEIGHT;
-    const rimZ = hoopPosition[2] + 0.3;
-    const rimSegments = 12;
-    const rimSphereRadius = 0.03;
-
-    for (let i = 0; i < rimSegments; i++) {
-      const angle = (i / rimSegments) * Math.PI * 2;
-      const rimX = hoopPosition[0] + Math.cos(angle) * rimRadius;
-      const rimZPos = rimZ + Math.sin(angle) * rimRadius;
-
-      const rimSegment = new CANNON.Body({
-        mass: 0,
-        position: new CANNON.Vec3(rimX, rimY, rimZPos),
-        shape: new CANNON.Sphere(rimSphereRadius),
-        material: wallMaterial,
-      });
-      world.addBody(rimSegment);
-    }
+    createHoopPhysics(world, hoopPosition, wallMaterial);
 
     // BALL PHYSICS
-    // ------------------------------------------------------------------------
-    const ballBody = new CANNON.Body({
-      mass: 0.6,
-      position: new CANNON.Vec3(ballInitialPosition[0], ballInitialPosition[1], ballInitialPosition[2]),
-      shape: new CANNON.Sphere(BALL_RADIUS),
-      material: ballMaterial,
-      linearDamping: 0.1,
-      angularDamping: 0.3,
-    });
-    world.addBody(ballBody);
+    const ballBody = createBallBody(world, ballInitialPosition, ballMaterial);
     ballBodyRef.current = ballBody;
 
     if (ballMeshRef.current) {
@@ -491,116 +782,19 @@ export function BasketballGame({ position, zoneSize }: BasketballGameProps) {
     }
 
     // PROXIMITY CHECK & GAME ENTRY
-    // ------------------------------------------------------------------------
-    const playerPos = camera.position;
-    const zoneCenter = new THREE.Vector3(position[0], position[1], position[2]);
-    const distance = playerPos.distanceTo(zoneCenter);
-
-    const isNear = distance < 8;
-    if (isNear !== isNearBasketball) {
-      setIsNearBasketball(isNear);
-      if (!isNear && isBasketballActive) {
-        exitGame();
-      }
-    }
-
-    if (isNear && keys.current.interact && isLocked && !isBasketballActive) {
-      resetInteract();
-      enterBasketballZone();
-      document.exitPointerLock();
-    }
-
+    handleProximityCheck();
+    
     // THROW CHARGING
-    // ------------------------------------------------------------------------
-    if (isChargingThrow) {
-      setThrowPower(throwPower + delta * 80);
-      if (throwPower >= 100) {
-        throwBall();
-      }
-    }
+    handleThrowCharging(delta);
 
     // PHYSICS SIMULATION
-    // ------------------------------------------------------------------------
-    if (worldRef.current && ballBodyRef.current) {
-      worldRef.current.step(1 / 60, delta, 3);
+    worldRef.current.step(1 / 60, delta, 3);
 
-      // Hold ball in front of player
-      if (isHoldingBall && !hasThrownBallRef.current) {
-        const holdPos = camera.position.clone();
-        const forward = new THREE.Vector3(0, 0, -1);
-        forward.applyQuaternion(camera.quaternion);
-        holdPos.add(forward.multiplyScalar(0.8));
-        holdPos.y -= 0.3;
-
-        ballBodyRef.current.position.set(holdPos.x, holdPos.y, holdPos.z);
-        ballBodyRef.current.velocity.set(0, 0, 0);
-      }
-
-      // Update mesh position
-      if (ballMeshRef.current) {
-        ballMeshRef.current.position.copy(ballBodyRef.current.position as unknown as THREE.Vector3);
-        ballMeshRef.current.quaternion.copy(ballBodyRef.current.quaternion as unknown as THREE.Quaternion);
-      }
-
-      // TRAJECTORY VISUALIZATION
-      // ----------------------------------------------------------------------
-      if (hasThrownBallRef.current && !isHoldingBall) {
-        const pos = new THREE.Vector3(
-          ballBodyRef.current.position.x,
-          ballBodyRef.current.position.y,
-          ballBodyRef.current.position.z,
-        );
-
-        const lastPos = trajectoryRef.current[trajectoryRef.current.length - 1];
-        if (!lastPos || pos.distanceTo(lastPos) > 0.05) {
-          trajectoryRef.current.push(pos);
-          // Limit trajectory array size to prevent memory issues
-          if (trajectoryRef.current.length > 200) {
-            trajectoryRef.current.shift();
-          }
-        }
-
-        if (trajectoryLineRef.current && trajectoryRef.current.length >= 2) {
-          const geometry = new THREE.BufferGeometry().setFromPoints(trajectoryRef.current);
-          trajectoryLineRef.current.geometry.dispose();
-          trajectoryLineRef.current.geometry = geometry;
-        }
-      }
-
-      // SCORE CHECKING & BALL RESET
-      // ----------------------------------------------------------------------
-      if (!isHoldingBall && hasThrownBallRef.current) {
-        scoreCheckTimeRef.current += delta;
-        checkScore();
-
-        // Check if ball is grounded
-        const ballY = ballBodyRef.current.position.y;
-        const ballVelY = Math.abs(ballBodyRef.current.velocity.y);
-        const isOnGround = ballY < position[1] + 0.3 && ballVelY < 0.5;
-
-        if (isOnGround) {
-          ballGroundedTimeRef.current += delta;
-
-          // Reset ball after being grounded for 1 second
-          if (ballGroundedTimeRef.current > GROUNDED_CHECK_TIME) {
-            ballBodyRef.current.position.set(
-              ballInitialPosition[0],
-              ballInitialPosition[1],
-              ballInitialPosition[2],
-            );
-            ballBodyRef.current.velocity.set(0, 0, 0);
-            ballBodyRef.current.angularVelocity.set(0, 0, 0);
-
-            hasThrownBallRef.current = false;
-            hasScoreCheckedRef.current = false;
-            ballGroundedTimeRef.current = 0;
-            scoreCheckTimeRef.current = 0;
-          }
-        } else {
-          ballGroundedTimeRef.current = 0;
-        }
-      }
-    }
+    // GAME LOGIC UPDATES
+    handleBallHolding();
+    updateBallMesh();
+    handleTrajectoryVisualization();
+    handleBallReset(delta);
   });
 
   // REF HANDLER
@@ -616,26 +810,8 @@ export function BasketballGame({ position, zoneSize }: BasketballGameProps) {
   // ==========================================================================
   return (
     <group>
-      {/* Court Boundaries (Visual) */}
-      <mesh position={[position[0], position[1] + 4, position[2] - zoneSize[2] / 2]}>
-        <boxGeometry args={[zoneSize[0], 8, 0.05]} />
-        <meshBasicMaterial color="#44ffff" transparent opacity={0.15} />
-      </mesh>
-
-      <mesh position={[position[0], position[1] + 4, position[2] + zoneSize[2] / 2]}>
-        <boxGeometry args={[zoneSize[0], 8, 0.05]} />
-        <meshBasicMaterial color="#44ffff" transparent opacity={0.15} />
-      </mesh>
-
-      <mesh position={[position[0] + zoneSize[0] / 2, position[1] + 4, position[2]]}>
-        <boxGeometry args={[0.05, 8, zoneSize[2]]} />
-        <meshBasicMaterial color="#44ffff" transparent opacity={0.15} />
-      </mesh>
-
-      <mesh position={[position[0] - zoneSize[0] / 2, position[1] + 4, position[2]]}>
-        <boxGeometry args={[0.05, 8, zoneSize[2]]} />
-        <meshBasicMaterial color="#44ffff" transparent opacity={0.15} />
-      </mesh>
+      {/* Court Boundaries */}
+      <CourtBoundaries position={position} zoneSize={zoneSize} isDarkMode={isDarkMode} />
 
       {/* Hoop */}
       <Hoop position={hoopPosition} />
@@ -646,26 +822,21 @@ export function BasketballGame({ position, zoneSize }: BasketballGameProps) {
       {/* Trajectory Line */}
       <line ref={(line) => { trajectoryLineRef.current = line as unknown as THREE.Line; }}>
         <bufferGeometry />
-        <lineBasicMaterial color="#ffff00" linewidth={2} transparent opacity={0.8} />
+        <lineBasicMaterial 
+          color={isDarkMode ? "#ffff88" : "#ffff00"}
+          linewidth={2} 
+          transparent 
+          opacity={0.8} 
+        />
       </line>
 
-      {/* Pickup Circle */}
-      <mesh position={[position[0], position[1] + 0.01, position[2] + zoneSize[2] / 2 - 1.5]} rotation={[-Math.PI / 2, 0, 0]}>
-        <ringGeometry args={[0.3, 0.4, 32]} />
-        <meshBasicMaterial color="#00ff00" transparent opacity={0.5} />
-      </mesh>
-
-      {/* Three-point Line (Arc) */}
-      <mesh position={[hoopPosition[0], position[1] + 0.01, hoopPosition[2] + 0.5]} rotation={[-Math.PI / 2, 0, Math.PI]}>
-        <ringGeometry args={[3, 3.1, 32, 1, 0, Math.PI]} />
-        <meshBasicMaterial color="#ffffff" transparent opacity={0.3} />
-      </mesh>
-
-      {/* Free-throw Line */}
-      <mesh position={[hoopPosition[0], position[1] + 0.01, hoopPosition[2] + 7]} rotation={[-Math.PI / 2, 0, 0]}>
-        <planeGeometry args={[3.6, 0.1]} />
-        <meshBasicMaterial color="#ffffff" transparent opacity={0.5} />
-      </mesh>
+      {/* Court Markings */}
+      <CourtMarkings 
+        hoopPosition={hoopPosition}
+        position={position}
+        zoneSize={zoneSize}
+        isDarkMode={isDarkMode}
+      />
     </group>
   );
 }

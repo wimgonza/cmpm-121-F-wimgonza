@@ -16,3 +16,6 @@
 
 ## 11/27/25
 - **Jenalee**: Refactor - Added brief comments to describe functions and file contents. Categorized functions in main.ts and player.ts for easier navigation.
+
+## 12/2/25 - 12/5/25
+- **Jenalee**: F2 Devlog requirement satisfaction updates, light/dark mode theme adaptations, long refactoring and code sectioning, and save system with debug panel implemented.

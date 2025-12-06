@@ -1,9 +1,10 @@
-import { useRef, useEffect, useMemo } from 'react';
+import React, { useRef, useEffect, useMemo, useCallback } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { Text } from '@react-three/drei';
 import { useGameStore } from '../hooks/useGameStore';
 import { useKeyboard } from '../hooks/useKeyboard';
+import { useTheme } from '../hooks/useTheme';
 
 // ============================================================================
 // TYPES & INTERFACES
@@ -16,23 +17,126 @@ interface SimonGameProps {
 // ============================================================================
 // GAME CONSTANTS
 // ============================================================================
-const BUTTON_COLORS = [
-  { normal: '#660000', lit: '#ff4444', name: 'red' },
-  { normal: '#666600', lit: '#ffff44', name: 'yellow' },
-  { normal: '#006600', lit: '#44ff44', name: 'green' },
-  { normal: '#000066', lit: '#4444ff', name: 'blue' },
-  { normal: '#660066', lit: '#ff44ff', name: 'purple' },
-];
+const SIMON_CONFIG = {
+  BUTTON: {
+    RADIUS: 0.35,
+    HEIGHT: 0.15,
+    CYLINDER_HEIGHT: 0.1,
+    COLORS: [
+      { normal: '#660000', lit: '#ff4444', name: 'red' },
+      { normal: '#666600', lit: '#ffff44', name: 'yellow' },
+      { normal: '#006600', lit: '#44ff44', name: 'green' },
+      { normal: '#000066', lit: '#4444ff', name: 'blue' },
+      { normal: '#660066', lit: '#ff44ff', name: 'purple' },
+    ] as const,
+  },
+  GAME: {
+    INTERACTION_DISTANCE: 4.5,
+    DOT_THRESHOLD: 0.97,
+    PROXIMITY_RADIUS: 6,
+    PATTERN_DELAY: 500,
+    BUTTON_LIGHT_TIME: 600,
+    BETWEEN_BUTTON_DELAY: 300,
+    NEXT_ROUND_DELAY: 1500,
+    INITIAL_PATTERN_DELAY: 1000,
+  }
+} as const;
 
-const BUTTON_RADIUS = 0.35;
-const BUTTON_HEIGHT = 0.15;
-const BUTTON_CYLINDER_HEIGHT = 0.1;
-const INTERACTION_DISTANCE = 4.5;
-const DOT_THRESHOLD = 0.97;
+// ============================================================================
+// HELPER FUNCTIONS
+// ============================================================================
+const calculateButtonClick = (
+  camera: THREE.Camera,
+  buttonPositions: [number, number, number][]
+): number | null => {
+  const cameraDir = new THREE.Vector3();
+  camera.getWorldDirection(cameraDir);
+  
+  for (let i = 0; i < buttonPositions.length; i++) {
+    const btnPos = new THREE.Vector3(...buttonPositions[i]);
+    btnPos.y += 0.1;
+    
+    const toButton = btnPos.clone().sub(camera.position);
+    const distance = toButton.length();
+    toButton.normalize();
+    
+    const dot = cameraDir.dot(toButton);
+    
+    if (dot > SIMON_CONFIG.GAME.DOT_THRESHOLD && distance < SIMON_CONFIG.GAME.INTERACTION_DISTANCE) {
+      return i;
+    }
+  }
+  
+  return null;
+};
 
 // ============================================================================
 // VISUAL COMPONENTS
 // ============================================================================
+
+// Table Component
+const SimonTable = React.memo(({ position }: { position: [number, number, number] }) => (
+  <group position={position}>
+    {/* Table base */}
+    <mesh position={[0, 1, 0]}>
+      <boxGeometry args={[3.2, 0.06, 1.8]} />
+      <meshBasicMaterial color="#222222" />
+    </mesh>
+
+    {/* Table surface */}
+    <mesh position={[0, 1.04, 0]}>
+      <boxGeometry args={[3, 0.02, 1.6]} />
+      <meshBasicMaterial color="#f5f5f5" />
+    </mesh>
+
+    {/* Table shadow */}
+    <mesh position={[0, 0.92, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+      <planeGeometry args={[3.4, 2]} />
+      <meshBasicMaterial color="#000000" transparent opacity={0.25} />
+    </mesh>
+  </group>
+));
+
+SimonTable.displayName = 'SimonTable';
+
+// Game UI Component
+const SimonGameUI = React.memo(({ 
+  tablePosition, 
+  patternLength, 
+  score, 
+  message 
+}: { 
+  tablePosition: [number, number, number];
+  patternLength: number;
+  score: number;
+  message: string;
+}) => (
+  <>
+    {/* Score display */}
+    <Text
+      position={[tablePosition[0], tablePosition[1] + 2, tablePosition[2]]}
+      fontSize={0.2}
+      color="#ffffff"
+      anchorX="center"
+      anchorY="middle"
+    >
+      {`Round: ${patternLength} | Score: ${score}`}
+    </Text>
+    
+    {/* Game message */}
+    <Text
+      position={[tablePosition[0], tablePosition[1] + 1.7, tablePosition[2]]}
+      fontSize={0.15}
+      color="#ffff00"
+      anchorX="center"
+      anchorY="middle"
+    >
+      {message}
+    </Text>
+  </>
+));
+
+SimonGameUI.displayName = 'SimonGameUI';
 
 // SIMON BUTTON COMPONENT
 // ----------------------------------------------------------------------------
@@ -47,19 +151,19 @@ function SimonButton({
   isLit: boolean;
   label: string;
 }) {
-  const colors = BUTTON_COLORS[colorIndex];
+  const colors = SIMON_CONFIG.BUTTON.COLORS[colorIndex];
 
   return (
     <group position={position}>
       {/* Button base */}
       <mesh position={[0, 0, 0]}>
-        <cylinderGeometry args={[BUTTON_RADIUS, BUTTON_RADIUS + 0.05, BUTTON_CYLINDER_HEIGHT, 32]} />
+        <cylinderGeometry args={[SIMON_CONFIG.BUTTON.RADIUS, SIMON_CONFIG.BUTTON.RADIUS + 0.05, SIMON_CONFIG.BUTTON.CYLINDER_HEIGHT, 32]} />
         <meshBasicMaterial color="#333333" />
       </mesh>
       
       {/* Button top surface */}
       <mesh position={[0, 0.1, 0]}>
-        <cylinderGeometry args={[BUTTON_RADIUS - 0.05, BUTTON_RADIUS - 0.05, BUTTON_HEIGHT, 32]} />
+        <cylinderGeometry args={[SIMON_CONFIG.BUTTON.RADIUS - 0.05, SIMON_CONFIG.BUTTON.RADIUS - 0.05, SIMON_CONFIG.BUTTON.HEIGHT, 32]} />
         <meshBasicMaterial 
           color={isLit ? colors.lit : colors.normal} 
           transparent={!isLit}
@@ -87,32 +191,6 @@ function SimonButton({
   );
 }
 
-// TABLE COMPONENT
-// ----------------------------------------------------------------------------
-function Table({ position }: { position: [number, number, number] }) {
-  return (
-    <group position={position}>
-      {/* Table base */}
-      <mesh position={[0, 1, 0]}>
-        <boxGeometry args={[3.2, 0.06, 1.8]} />
-        <meshBasicMaterial color="#222222" />
-      </mesh>
-
-      {/* Table surface */}
-      <mesh position={[0, 1.04, 0]}>
-        <boxGeometry args={[3, 0.02, 1.6]} />
-        <meshBasicMaterial color="#f5f5f5" />
-      </mesh>
-
-      {/* Table shadow */}
-      <mesh position={[0, 0.92, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <planeGeometry args={[3.4, 2]} />
-        <meshBasicMaterial color="#000000" transparent opacity={0.25} />
-      </mesh>
-    </group>
-  );
-}
-
 // ============================================================================
 // MAIN SIMON GAME COMPONENT
 // ============================================================================
@@ -121,11 +199,14 @@ export function SimonGame({ position, zoneSize }: SimonGameProps) {
   // --------------------------------------------------------------------------
   const { camera } = useThree();
   const { keys, resetInteract } = useKeyboard();
+  const { isDarkMode } = useTheme();
   
   // GAME STATE REFERENCES
   // --------------------------------------------------------------------------
   const patternShowIndexRef = useRef(0);
   const patternTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Add a ref to store the showPattern function
+  const showPatternRef = useRef<(() => void) | null>(null);
   
   // GAME STORE STATE
   // --------------------------------------------------------------------------
@@ -150,10 +231,12 @@ export function SimonGame({ position, zoneSize }: SimonGameProps) {
     setSimonShowingPattern,
     setSimonCanClick,
     exitSimonGame,
+    setSimonGameMessage,
+    simonPlayerPattern,
   } = useGameStore();
 
   // ==========================================================================
-  // COMPUTED POSITIONS
+  // COMPUTED VALUES
   // ==========================================================================
   
   // TABLE POSITION
@@ -179,6 +262,120 @@ export function SimonGame({ position, zoneSize }: SimonGameProps) {
   );
 
   // ==========================================================================
+  // GAME LOGIC FUNCTIONS
+  // ==========================================================================
+
+  // EXIT GAME FUNCTION
+  // --------------------------------------------------------------------------
+  const handleExitGame = useCallback(() => {
+    exitSimonGame();
+    setTimeout(() => {
+      const canvas = document.querySelector('canvas');
+      canvas?.requestPointerLock();
+    }, 100);
+  }, [exitSimonGame]);
+
+  // PROXIMITY CHECK FUNCTION
+  // --------------------------------------------------------------------------
+  const handleProximityCheck = useCallback(() => {
+    const playerPos = camera.position;
+    const zoneCenter = new THREE.Vector3(position[0], position[1], position[2]);
+    const distance = playerPos.distanceTo(zoneCenter);
+
+    const isNear = distance < SIMON_CONFIG.GAME.PROXIMITY_RADIUS;
+    if (isNear !== isNearSimon) {
+      setIsNearSimon(isNear);
+      if (!isNear && isSimonActive) {
+        handleExitGame();
+      }
+    }
+
+    // GAME ACTIVATION (Interact key)
+    if (isNear && keys.current.interact && isLocked && !isSimonActive) {
+      resetInteract();
+      setIsSimonActive(true);
+      document.exitPointerLock();
+    }
+  }, [
+    camera, 
+    position, 
+    isNearSimon, 
+    isSimonActive, 
+    isLocked, 
+    keys, 
+    resetInteract, 
+    setIsNearSimon, 
+    setIsSimonActive, 
+    handleExitGame
+  ]);
+
+  // MOUSE CLICK HANDLER
+  // --------------------------------------------------------------------------
+  const handleButtonClick = useCallback(() => {
+    if (!isSimonActive || !simonBetPlaced || !simonCanClick) return;
+    
+    const clickedButton = calculateButtonClick(camera, buttonPositions);
+    if (clickedButton !== null) {
+      // Visual feedback with timeout cleanup
+      setSimonLitButton(clickedButton);
+      const clearTimeoutId = setTimeout(() => setSimonLitButton(null), 200);
+      
+      // Game logic
+      simonButtonClick(clickedButton);
+      
+      // Return cleanup function
+      return () => clearTimeout(clearTimeoutId);
+    }
+    return undefined;
+  }, [
+    isSimonActive, 
+    simonBetPlaced, 
+    simonCanClick, 
+    camera, 
+    buttonPositions, 
+    simonButtonClick, 
+    setSimonLitButton
+  ]);
+
+  // PATTERN DISPLAY FUNCTION (Using ref to avoid circular dependency)
+  // --------------------------------------------------------------------------
+  const showNextPatternButton = useCallback(() => {
+    if (patternShowIndexRef.current < simonPattern.length) {
+      const buttonIndex = simonPattern[patternShowIndexRef.current];
+      setSimonLitButton(buttonIndex);
+      
+      patternTimerRef.current = setTimeout(() => {
+        setSimonLitButton(null);
+        patternShowIndexRef.current++;
+        
+        patternTimerRef.current = setTimeout(() => {
+          if (patternShowIndexRef.current < simonPattern.length) {
+            // Use the ref to call the function instead of direct recursion
+            if (showPatternRef.current) {
+              showPatternRef.current();
+            }
+          } else {
+            setSimonShowingPattern(false);
+            setSimonCanClick(true);
+            setSimonGameMessage('Your turn!');
+          }
+        }, SIMON_CONFIG.GAME.BETWEEN_BUTTON_DELAY);
+      }, SIMON_CONFIG.GAME.BUTTON_LIGHT_TIME);
+    }
+  }, [
+    simonPattern, 
+    setSimonLitButton, 
+    setSimonShowingPattern, 
+    setSimonCanClick, 
+    setSimonGameMessage
+  ]);
+
+  // Store the function in a ref so it can be called recursively
+  useEffect(() => {
+    showPatternRef.current = showNextPatternButton;
+  }, [showNextPatternButton]);
+
+  // ==========================================================================
   // USE EFFECTS
   // ==========================================================================
 
@@ -187,17 +384,14 @@ export function SimonGame({ position, zoneSize }: SimonGameProps) {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.code === 'KeyQ' && isSimonActive) {
-        exitSimonGame();
-        setTimeout(() => {
-          const canvas = document.querySelector('canvas');
-          canvas?.requestPointerLock();
-        }, 100);
+        e.preventDefault();
+        handleExitGame();
       }
     };
     
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isSimonActive, exitSimonGame]);
+  }, [isSimonActive, handleExitGame]);
 
   // PATTERN DISPLAY SEQUENCE
   // --------------------------------------------------------------------------
@@ -206,51 +400,41 @@ export function SimonGame({ position, zoneSize }: SimonGameProps) {
     
     patternShowIndexRef.current = 0;
     
-    const showNextButton = () => {
-      if (patternShowIndexRef.current < simonPattern.length) {
-        const buttonIndex = simonPattern[patternShowIndexRef.current];
-        setSimonLitButton(buttonIndex);
-        
-        patternTimerRef.current = setTimeout(() => {
-          setSimonLitButton(null);
-          patternShowIndexRef.current++;
-          
-          patternTimerRef.current = setTimeout(() => {
-            if (patternShowIndexRef.current < simonPattern.length) {
-              showNextButton();
-            } else {
-              setSimonShowingPattern(false);
-              setSimonCanClick(true);
-              useGameStore.getState().setSimonGameMessage('Your turn!');
-            }
-          }, 300);
-        }, 600);
+    const startTimer = setTimeout(() => {
+      if (showPatternRef.current) {
+        showPatternRef.current();
       }
-    };
-    
-    const startTimer = setTimeout(showNextButton, 500);
+    }, SIMON_CONFIG.GAME.PATTERN_DELAY);
     
     return () => {
-      clearTimeout(startTimer);
+      if (startTimer) clearTimeout(startTimer);
       if (patternTimerRef.current) {
         clearTimeout(patternTimerRef.current);
+        patternTimerRef.current = null;
       }
     };
-  }, [simonIsShowingPattern, simonPattern, setSimonLitButton, setSimonShowingPattern, setSimonCanClick]);
+  }, [simonIsShowingPattern, simonPattern.length]);
 
   // NEXT ROUND TRIGGER (After player completes pattern)
   // --------------------------------------------------------------------------
   useEffect(() => {
     if (simonBetPlaced && !simonIsShowingPattern && !simonCanClick && !simonIsGameOver && simonPattern.length > 0) {
-      const state = useGameStore.getState();
-      if (state.simonPlayerPattern.length === simonPattern.length) {
+      if (simonPlayerPattern.length === simonPattern.length) {
         const timer = setTimeout(() => {
           addToSimonPattern();
-        }, 1500);
+        }, SIMON_CONFIG.GAME.NEXT_ROUND_DELAY);
         return () => clearTimeout(timer);
       }
     }
-  }, [simonBetPlaced, simonIsShowingPattern, simonCanClick, simonIsGameOver, simonPattern, addToSimonPattern]);
+  }, [
+    simonBetPlaced, 
+    simonIsShowingPattern, 
+    simonCanClick, 
+    simonIsGameOver, 
+    simonPattern.length, 
+    simonPlayerPattern.length, 
+    addToSimonPattern
+  ]);
 
   // INITIAL PATTERN GENERATION (Start of game)
   // --------------------------------------------------------------------------
@@ -258,7 +442,7 @@ export function SimonGame({ position, zoneSize }: SimonGameProps) {
     if (simonBetPlaced && simonPattern.length === 0 && !simonIsGameOver) {
       const timer = setTimeout(() => {
         addToSimonPattern();
-      }, 1000);
+      }, SIMON_CONFIG.GAME.INITIAL_PATTERN_DELAY);
       return () => clearTimeout(timer);
     }
   }, [simonBetPlaced, simonPattern.length, simonIsGameOver, addToSimonPattern]);
@@ -267,69 +451,31 @@ export function SimonGame({ position, zoneSize }: SimonGameProps) {
   // --------------------------------------------------------------------------
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
-      if (!isSimonActive || !simonBetPlaced || !simonCanClick || e.button !== 0) return;
-      
-      const cameraDir = new THREE.Vector3();
-      camera.getWorldDirection(cameraDir);
-      
-      // Check each button for click intersection
-      for (let i = 0; i < buttonPositions.length; i++) {
-        const btnPos = new THREE.Vector3(...buttonPositions[i]);
-        btnPos.y += 0.1; // Offset to center of button
-        
-        const toButton = btnPos.clone().sub(camera.position);
-        const distance = toButton.length();
-        toButton.normalize();
-        
-        const dot = cameraDir.dot(toButton);
-        
-        // Check if looking at button and within range
-        if (dot > DOT_THRESHOLD && distance < INTERACTION_DISTANCE) {
-          // Visual feedback
-          setSimonLitButton(i);
-          setTimeout(() => setSimonLitButton(null), 200);
-          
-          // Game logic
-          simonButtonClick(i);
-          return;
-        }
-      }
+      if (e.button !== 0) return;
+      handleButtonClick();
     };
     
     window.addEventListener('click', handleClick);
     return () => window.removeEventListener('click', handleClick);
-  }, [isSimonActive, simonBetPlaced, simonCanClick, camera, buttonPositions, simonButtonClick, setSimonLitButton]);
+  }, [handleButtonClick]);
 
+  // CLEANUP ON UNMOUNT
+  // --------------------------------------------------------------------------
+  useEffect(() => {
+    return () => {
+      if (patternTimerRef.current) {
+        clearTimeout(patternTimerRef.current);
+        patternTimerRef.current = null;
+      }
+    };
+  }, []);
+
+  // ==========================================================================
   // GAME LOOP (useFrame)
   // ==========================================================================
   useFrame(() => {
     if (currentRoom !== 'minigame3') return;
-
-    // PROXIMITY CHECK & GAME ENTRY
-    // ------------------------------------------------------------------------
-    const playerPos = camera.position;
-    const zoneCenter = new THREE.Vector3(position[0], position[1], position[2]);
-    const distance = playerPos.distanceTo(zoneCenter);
-
-    const isNear = distance < 6;
-    if (isNear !== isNearSimon) {
-      setIsNearSimon(isNear);
-      if (!isNear && isSimonActive) {
-        exitSimonGame();
-        setTimeout(() => {
-          const canvas = document.querySelector('canvas');
-          canvas?.requestPointerLock();
-        }, 100);
-      }
-    }
-
-    // GAME ACTIVATION (Interact key)
-    // ------------------------------------------------------------------------
-    if (isNear && keys.current.interact && isLocked && !isSimonActive) {
-      resetInteract();
-      setIsSimonActive(true);
-      document.exitPointerLock();
-    }
+    handleProximityCheck();
   });
 
   // RENDER GUARD
@@ -341,7 +487,7 @@ export function SimonGame({ position, zoneSize }: SimonGameProps) {
   return (
     <group>
       {/* TABLE */}
-      <Table position={tablePosition} />
+      <SimonTable position={tablePosition} />
       
       {/* BUTTONS */}
       {buttonPositions.map((pos, index) => (
@@ -356,35 +502,22 @@ export function SimonGame({ position, zoneSize }: SimonGameProps) {
 
       {/* GAME UI */}
       {isSimonActive && simonBetPlaced && (
-        <>
-          {/* Score display */}
-          <Text
-            position={[tablePosition[0], tablePosition[1] + 2, tablePosition[2]]}
-            fontSize={0.2}
-            color="#ffffff"
-            anchorX="center"
-            anchorY="middle"
-          >
-            {`Round: ${simonPattern.length} | Score: ${simonScore}`}
-          </Text>
-          
-          {/* Game message */}
-          <Text
-            position={[tablePosition[0], tablePosition[1] + 1.7, tablePosition[2]]}
-            fontSize={0.15}
-            color="#ffff00"
-            anchorX="center"
-            anchorY="middle"
-          >
-            {simonGameMessage}
-          </Text>
-        </>
+        <SimonGameUI 
+          tablePosition={tablePosition}
+          patternLength={simonPattern.length}
+          score={simonScore}
+          message={simonGameMessage}
+        />
       )}
 
-      {/* ZONE VISUALIZATION */}
+      {/* Zone indicator */}
       <mesh position={[position[0], position[1] + 0.01, position[2]]} rotation={[-Math.PI / 2, 0, 0]}>
         <planeGeometry args={[zoneSize[0], zoneSize[2]]} />
-        <meshBasicMaterial color="#9966ff" transparent opacity={0.2} />
+        <meshBasicMaterial 
+          color={isDarkMode ? "#aa88ff" : "#9966ff"}
+          transparent 
+          opacity={0.2} 
+        />
       </mesh>
     </group>
   );
