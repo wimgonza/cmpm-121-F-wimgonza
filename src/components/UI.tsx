@@ -1,11 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useGameStore } from '../hooks/useGameStore';
-import { ROOM_CONFIGS } from '../config/rooms';
+import { useI18n } from '../hooks/useI18n';
 
 // ============================================================================
 // UI COMPONENT
 // ============================================================================
 export function UI() {
+  // I18N
+  const { t } = useI18n();
+  
   // GAME STORE STATE
   // --------------------------------------------------------------------------
   const { 
@@ -63,7 +66,6 @@ export function UI() {
 
   // COMPUTED VALUES
   // --------------------------------------------------------------------------
-  const roomConfig = ROOM_CONFIGS[currentRoom];
   const isWin = diceResult && lastBetForResult === diceResult.total;
 
   // ==========================================================================
@@ -182,7 +184,7 @@ export function UI() {
 
       {/* ROOM INDICATOR */}
       <div className="room-indicator">
-        {roomConfig.name}
+        {t(`ui.roomIndicator.${currentRoom}`)}
       </div>
 
       {/* MONEY DISPLAY */}
@@ -192,7 +194,7 @@ export function UI() {
 
       {/* INVENTORY */}
       <div className="inventory">
-        <div className="inventory-title">Inventory</div>
+        <div className="inventory-title">{t('ui.inventory')}</div>
         <div className="inventory-slots">
           {[0, 1, 2].map((index) => {
             const item = inventory[index];
@@ -218,14 +220,14 @@ export function UI() {
       ===================================================================== */}
       {!isLocked && !isMiniGameActive && (
         <div className="interaction-hint">
-          Click the screen to start
+          {t('ui.interaction.clickToStart')}
         </div>
       )}
 
       {/* REWARD BOX INTERACTION HINT */}
       {isLocked && nearRewardBox && !isNearMiniGame && !isMiniGameActive && (
         <div className="interaction-hint">
-          [E] Collect Reward Box
+          {t('ui.interaction.collectRewardBox')}
         </div>
       )}
 
@@ -243,17 +245,17 @@ export function UI() {
                 return (
                   <>
                     <div style={{ color: '#ff6b6b', marginBottom: '5px' }}>
-                      🔒 Locked
+                      {t('ui.interaction.portalLocked')}
                     </div>
                     <div style={{ fontSize: '14px', color: '#999' }}>
-                      Collect all 3 reward boxes to unlock
+                      {t('ui.interaction.portalLockedDesc')}
                     </div>
                   </>
                 );
               }
-              return `[E] ${nearPortal.label}`;
+              return t('ui.interaction.enterPortal', { label: nearPortal.label });
             })()
-          ) || `[E] ${nearPortal.label}`}
+          ) || t('ui.interaction.enterPortal', { label: nearPortal.label })}
         </div>
       )}
 
@@ -262,7 +264,7 @@ export function UI() {
       ===================================================================== */}
       {isLocked && isNearMiniGame && currentRoom === 'minigame1' && !isMiniGameActive && (
         <div className="interaction-hint">
-          [E] Start Dice Game 🎲
+          {t('ui.diceGame.start')}
         </div>
       )}
 
@@ -353,7 +355,7 @@ export function UI() {
 
       {isMiniGameActive && diceResult && currentRoom === 'minigame1' && (
         <div className={`dice-result-panel ${isWin ? 'win' : 'lose'}`}>
-          <h3>{isWin ? '🎉 Win!' : '😢 Lose...'}</h3>
+          <h3>{isWin ? t('ui.diceGame.win') : t('ui.diceGame.lose')}</h3>
           <div className="result-bet-info">
             Predicted: {lastBetForResult} | Bet: {lastBetAmountForResult}
           </div>
@@ -379,10 +381,10 @@ export function UI() {
             setSelectedBet(null);
             setInputBetAmount(10);
           }}>
-            Play Again (E)
+            {t('ui.diceGame.playAgain')}
           </button>
           <button className="exit-mini-button" onClick={handleExitMiniGame}>
-            Exit (Q)
+            {t('ui.diceGame.exit')}
           </button>
         </div>
       )}
@@ -392,7 +394,7 @@ export function UI() {
       ===================================================================== */}
       {isLocked && isNearBasketball && currentRoom === 'minigame2' && !isBasketballActive && (
         <div className="interaction-hint">
-          [E] Start Basketball Game 🏀
+          {t('ui.basketballGame.start')}
         </div>
       )}
 
@@ -464,7 +466,7 @@ export function UI() {
       ===================================================================== */}
       {isLocked && isNearSimon && currentRoom === 'minigame3' && !isSimonActive && (
         <div className="interaction-hint">
-          [E] Start Simon Game 🎵
+          {t('ui.simonGame.start')}
         </div>
       )}
 
@@ -539,15 +541,15 @@ export function UI() {
       {isSimonActive && simonIsGameOver && (
         <div className="fullscreen-overlay">
         <div className="simon-gameover">
-          <h2>{simonScore >= 10 ? '🎉 Clear!' : 'Game Over!'}</h2>
-          <p>Final Score: {simonScore}</p>
+          <h2>{simonScore >= 10 ? t('ui.simonGame.clear') : t('ui.simonGame.gameOver')}</h2>
+          <p>{t('ui.simonGame.finalScore')}: {simonScore}</p>
           <div className="result-buttons">
             <button className="play-again-button" onClick={() => {
               exitSimonGame();
               setSimonBetInput(10);
               useGameStore.getState().setIsSimonActive(true);
             }}>
-              Play Again
+              {t('ui.simonGame.playAgain')}
             </button>
             <button className="exit-button" onClick={() => {
               exitSimonGame();
@@ -556,7 +558,7 @@ export function UI() {
                 canvas?.requestPointerLock();
               }, 100);
             }}>
-              Exit (Q)
+              {t('ui.simonGame.exit')}
             </button>
           </div>
         </div>
@@ -575,13 +577,13 @@ export function UI() {
       })() && (
         <div className="fullscreen-overlay">
           <div className="game-clear-screen">
-            <h1>🎉 Game Clear! 🎉</h1>
+            <h1>{t('ui.gameClear.title')}</h1>
             <p className="clear-message">
-              Congratulations! You have played all minigames!
+              {t('ui.gameClear.message')}
             </p>
             <div className="clear-stats">
               <div className="stat-item">
-                <span className="stat-label">Final Money:</span>
+                <span className="stat-label">{t('ui.gameClear.finalMoney')}</span>
                 <span className="stat-value">${money}</span>
               </div>
             </div>
@@ -596,7 +598,7 @@ export function UI() {
                   }, 100);
                 }}
               >
-                Restart Game
+                {t('ui.gameClear.restart')}
               </button>
             </div>
           </div>

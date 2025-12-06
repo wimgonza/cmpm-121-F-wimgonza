@@ -47,6 +47,57 @@ body {
   color: var(--ui-text-primary);
 }
 
+/* RTL Support */
+[dir="rtl"] {
+  direction: rtl;
+  text-align: right;
+}
+
+[dir="rtl"] .ui-overlay {
+  direction: ltr !important; /* Keep LTR for layout, only change text direction in child elements */
+}
+
+[dir="rtl"] .start-screen {
+  direction: rtl;
+}
+
+/* Keep absolute positioned elements in their original physical position for RTL */
+/* left/right are physical positions, not affected by text direction */
+[dir="rtl"] .inventory {
+  left: 20px !important;
+  right: auto !important;
+  direction: ltr; /* Keep layout LTR */
+}
+
+[dir="rtl"] .money-display {
+  left: 20px !important;
+  right: auto !important;
+  direction: ltr; /* Keep layout LTR */
+}
+
+[dir="rtl"] .room-indicator {
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  direction: ltr !important; /* Keep layout LTR */
+  text-align: center !important;
+}
+
+/* RTL text alignment for content inside these elements */
+[dir="rtl"] .inventory-title {
+  text-align: center;
+  direction: rtl; /* Text direction RTL */
+}
+
+[dir="rtl"] .money-display {
+  text-align: right;
+  direction: rtl; /* Text direction RTL */
+}
+
+[dir="rtl"] .interaction-hint {
+  direction: rtl;
+  text-align: center;
+}
+
 canvas {
   display: block;
 }
@@ -152,6 +203,10 @@ textarea {
   font-weight: bold;
   border: 1px solid color-mix(in srgb, var(--ui-border) 50%, transparent 50%);
   box-shadow: var(--ui-shadow-sm);
+  text-align: center;
+  direction: ltr;
+  white-space: nowrap;
+  width: fit-content;
 }
 
 /* money display (top left) */

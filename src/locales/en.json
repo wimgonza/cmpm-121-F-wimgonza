@@ -1,0 +1,69 @@
+{
+  "ui": {
+    "startScreen": {
+      "title": "🎮 3D Mini Games",
+      "subtitle": "Explore four different minigame rooms!",
+      "startButton": "Start Game",
+      "controls": "WASD - Move | Space - Jump | Shift - Sprint",
+      "controls2": "Mouse - Look | E - Interact (Portals / Games)"
+    },
+    "roomIndicator": {
+      "main": "Main Lobby",
+      "minigame1": "Minigame 1 - Dice Room",
+      "minigame2": "Minigame 2 - Basketball",
+      "minigame3": "Minigame 3 - Gold Zone",
+      "minigame4": "Minigame 4 - Purple Zone"
+    },
+    "money": "💰",
+    "inventory": "Inventory",
+    "interaction": {
+      "clickToStart": "Click the screen to start",
+      "collectRewardBox": "[E] Collect Reward Box",
+      "portalLocked": "🔒 Locked",
+      "portalLockedDesc": "Collect all 3 reward boxes to unlock",
+      "enterPortal": "[E] {label}"
+    },
+    "diceGame": {
+      "start": "[E] Start Dice Game 🎲",
+      "selectBet": "Select Bet",
+      "betAmount": "Bet Amount",
+      "placeBet": "Place Bet",
+      "roll": "Roll Dice",
+      "win": "🎉 Win!",
+      "lose": "😢 Lose...",
+      "playAgain": "Play Again (E)",
+      "exit": "Exit (Q)"
+    },
+    "basketballGame": {
+      "start": "[E] Start Basketball Game 🏀",
+      "placeBet": "Place Bet",
+      "betAmount": "Bet Amount",
+      "startGame": "Start Game",
+      "score": "Score",
+      "attempts": "Attempts",
+      "power": "Power",
+      "holdSpace": "Hold Space to Charge",
+      "releaseSpace": "Release Space to Throw",
+      "exit": "Exit (Q)"
+    },
+    "simonGame": {
+      "start": "[E] Start Simon Game 🎵",
+      "placeBet": "Place Bet",
+      "betAmount": "Bet Amount",
+      "startGame": "Start Game",
+      "score": "Score",
+      "exit": "Exit (Q)",
+      "clear": "🎉 Clear!",
+      "gameOver": "Game Over!",
+      "finalScore": "Final Score",
+      "playAgain": "Play Again"
+    },
+    "gameClear": {
+      "title": "🎉 Game Clear! 🎉",
+      "message": "Congratulations! You have played all minigames!",
+      "finalMoney": "Final Money:",
+      "restart": "Restart Game"
+    }
+  }
+}
+

@@ -1,4 +1,5 @@
 import { useGameStore } from '../hooks/useGameStore';
+import { useI18n } from '../hooks/useI18n';
 
 // ============================================================================
 // START SCREEN COMPONENT
@@ -6,6 +7,7 @@ import { useGameStore } from '../hooks/useGameStore';
 export function StartScreen() {
   // GAME STATE
   const { isPlaying, setIsPlaying } = useGameStore();
+  const { t } = useI18n();
 
   // RENDER GUARD
   if (isPlaying) return null;
@@ -21,18 +23,18 @@ export function StartScreen() {
   return (
     <div className="start-screen">
       {/* TITLE SECTION */}
-      <h1>🎮 3D Mini Games</h1>
-      <p>Explore four different minigame rooms!</p>
+      <h1>{t('ui.startScreen.title')}</h1>
+      <p>{t('ui.startScreen.subtitle')}</p>
 
       {/* START BUTTON */}
       <button className="start-button" onClick={handleStart}>
-        Start Game
+        {t('ui.startScreen.startButton')}
       </button>
 
       {/* CONTROLS INFO */}
       <div className="controls-info">
-        <span>WASD - Move | Space - Jump | Shift - Sprint</span>
-        <span>Mouse - Look | E - Interact (Portals / Games)</span>
+        <span>{t('ui.startScreen.controls')}</span>
+        <span>{t('ui.startScreen.controls2')}</span>
       </div>
     </div>
   );

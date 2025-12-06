@@ -5,6 +5,7 @@ import type { RoomType, SaveSlot } from '../types';
 import { useGameStore } from '../hooks/useGameStore';
 import { PLAYER_CONFIG, PHYSICS_CONFIG } from '../config/rooms';
 import { useTheme } from '../hooks/useTheme';
+import { useI18n, type Language } from '../hooks/useI18n';
 
 // ============================================================================
 // DEBUG GUI COMPONENT
@@ -37,6 +38,7 @@ export function DebugGUI() {
   } = useGameStore();
   
   const { isDarkMode, toggleTheme } = useTheme();
+  const { language, setLanguage } = useI18n();
 
   // GUI INITIALIZATION & SETUP
   useEffect(() => {
@@ -167,6 +169,24 @@ export function DebugGUI() {
       });
     
     themeFolder.close();
+
+    // ========================================================================
+    // LANGUAGE SETTINGS FOLDER
+    // ========================================================================
+    const languageFolder = gui.addFolder('🌐 Language / 语言 / اللغة');
+    const languageState = { language: language };
+    
+    // Language selector dropdown
+    languageFolder.add(languageState, 'language', ['en', 'zh', 'ar'])
+      .name('Language')
+      .listen()
+      .onChange(async (value: Language) => {
+        if (value !== language) {
+          await setLanguage(value);
+        }
+      });
+    
+    languageFolder.close();
 
     // ========================================================================
     // SAVE SYSTEM FOLDER
@@ -391,7 +411,8 @@ export function DebugGUI() {
     };
   }, [camera, currentRoom, setCurrentRoom, money, setMoney, toggleTheme, isDarkMode, 
     autoSaveEnabled, autoSaveInterval, clearAllSaves, currentSaveId, deleteSave, 
-    listSaves, loadGame, playerTeleportTarget, saveGame, setAutoSaveInterval, toggleAutoSave]);
+    listSaves, loadGame, playerTeleportTarget, saveGame, setAutoSaveInterval, toggleAutoSave,
+    language, setLanguage]);
 
   // Update theme state in GUI when theme changes
   useEffect(() => {
