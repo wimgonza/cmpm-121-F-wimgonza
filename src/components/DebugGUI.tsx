@@ -16,8 +16,7 @@ export function DebugGUI() {
   const guiRef = useRef<GUI | null>(null);
   const themeStateRef = useRef<{ darkMode: boolean } | null>(null);
   const saveSlotsRef = useRef<SaveSlot[]>([]);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const saveListFolderRef = useRef<any>(null);
+  const saveListFolderRef = useRef<GUI | null>(null);
   const { camera } = useThree();
   const { 
     currentRoom, 
@@ -47,7 +46,7 @@ export function DebugGUI() {
     const gui = new GUI();
     guiRef.current = gui;
 
-    (gui as any).title(t('ui.debugPanel.title'));
+    (gui as GUI & { title?: (title: string) => void }).title?.(t('ui.debugPanel.title'));
 
     // Apply RTL styling 
     if (isRTL) {
@@ -321,10 +320,13 @@ export function DebugGUI() {
       if (saveListFolderRef.current) {
         saveListFolderRef.current.hide();
         const parent = saveListFolderRef.current.parent;
-        if (parent && parent.folders) {
-          const index = parent.folders.indexOf(saveListFolderRef.current);
+        
+        // Type-safe parent handling
+        if (parent && (parent as GUI & { folders?: GUI[] }).folders) {
+          const parentWithFolders = parent as GUI & { folders: GUI[] };
+          const index = parentWithFolders.folders.indexOf(saveListFolderRef.current);
           if (index > -1) {
-            parent.folders.splice(index, 1);
+            parentWithFolders.folders.splice(index, 1);
           }
         }
       }
@@ -344,7 +346,7 @@ export function DebugGUI() {
       } else {
         slots.forEach((slot, index) => {
           // Create a sub-folder for each save slot
-          const slotFolder = saveListFolderRef.current.addFolder(
+          const slotFolder = saveListFolderRef.current!.addFolder(
             `${t('ui.debugPanel.saveSystem.save')} ${index + 1}: ${slot.name}`
           );
           
@@ -446,7 +448,7 @@ export function DebugGUI() {
   // Update GUI title when language changes
   useEffect(() => {
     if (guiRef.current) {
-      (guiRef.current as any).title(t('ui.debugPanel.title'));
+      (guiRef.current as GUI & { title?: (title: string) => void }).title?.(t('ui.debugPanel.title'));
     }
   }, [language, t]);
 
