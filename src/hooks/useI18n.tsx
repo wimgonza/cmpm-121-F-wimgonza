@@ -113,11 +113,17 @@ export function useI18n() {
   // Get RTL status
   const isRTL = language === 'ar';
   
+  // Text alignment direction
+  const textDirection = isRTL ? 'rtl' : 'ltr';
+  const textAlign = isRTL ? 'right' : 'left';
+
   return {
     language,
     setLanguage,
     t,
     isRTL,
+    textDirection,
+    textAlign,
   };
 }
 

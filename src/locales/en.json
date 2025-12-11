@@ -63,7 +63,79 @@
       "message": "Congratulations! You have played all minigames!",
       "finalMoney": "Final Money:",
       "restart": "Restart Game"
+    },
+    "debugPanel": {
+      "title": "🎮 Debug Panel",
+      "player": {
+        "title": "Player",
+        "moveSpeed": "Move Speed",
+        "jumpForce": "Jump Force",
+        "sprintMultiplier": "Sprint Multiplier",
+        "mouseSensitivity": "Mouse Sensitivity"
+      },
+      "inventory": {
+        "title": "💰 Inventory",
+        "money": "Money",
+        "add100": "+100",
+        "add1000": "+1000",
+        "reset": "Reset (100)"
+      },
+      "physics": {
+        "title": "Physics",
+        "gravity": "Gravity",
+        "groundFriction": "Ground Friction"
+      },
+      "camera": {
+        "title": "Camera Position"
+      },
+      "rooms": {
+        "title": "Rooms",
+        "currentRoom": "Current Room",
+        "main": "Main Room",
+        "minigame1": "Mini Game 1",
+        "minigame2": "Mini Game 2",
+        "minigame3": "Mini Game 3",
+        "minigame4": "Mini Game 4"
+      },
+      "theme": {
+        "title": "Theme",
+        "darkMode": "Dark Mode"
+      },
+      "language": {
+        "title": "🌐 Language",
+        "select": "Language",
+        "english": "English",
+        "chinese": "Chinese",
+        "arabic": "Arabic"
+      },
+      "saveSystem": {
+        "title": "💾 Save System",
+        "autoSave": "Auto-save",
+        "autoSaveInterval": "Auto-save Interval (s)",
+        "currentSave": "Current Save",
+        "playerPosition": "Player Position",
+        "none": "None",
+        "noPosition": "No position",
+        "loaded": "Loaded",
+        "quickSave": "Quick Save (F5)",
+        "quickLoad": "Quick Load (F9)",
+        "manualSave": "Manual Save",
+        "refreshList": "Refresh List",
+        "clearAll": "⚠️ Clear All Saves",
+        "saveSlots": "Save Slots",
+        "save": "Save",
+        "noSaves": "No save files",
+        "loadThisSave": "Load This Save",
+        "deleteThisSave": "Delete This Save",
+        "quickSaveSuccess": "Quick save successful",
+        "quickLoadSuccess": "Quick load successful",
+        "noQuickSave": "No quick save found",
+        "savePrompt": "Save name (optional):",
+        "clearConfirm": "Are you sure you want to delete ALL save files?",
+        "allCleared": "All saves cleared",
+        "loadedSave": "Loaded save: {name}",
+        "deleteConfirm": "Delete save \"{name}\"?"
+      }
     }
   }
 }
-

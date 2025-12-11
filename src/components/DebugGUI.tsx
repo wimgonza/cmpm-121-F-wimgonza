@@ -5,7 +5,7 @@ import type { RoomType, SaveSlot } from '../types';
 import { useGameStore } from '../hooks/useGameStore';
 import { PLAYER_CONFIG, PHYSICS_CONFIG } from '../config/rooms';
 import { useTheme } from '../hooks/useTheme';
-import { useI18n, type Language } from '../hooks/useI18n';
+import { useI18n } from '../hooks/useI18n';
 
 // ============================================================================
 // DEBUG GUI COMPONENT
@@ -38,36 +38,48 @@ export function DebugGUI() {
   } = useGameStore();
   
   const { isDarkMode, toggleTheme } = useTheme();
-  const { language, setLanguage } = useI18n();
+  const { language, setLanguage, t, isRTL } = useI18n();
 
   // GUI INITIALIZATION & SETUP
   useEffect(() => {
-    // Guard: Only create GUI once
     if (guiRef.current) return;
 
-    const gui = new GUI({ title: '🎮 Debug Panel' });
+    const gui = new GUI();
     guiRef.current = gui;
 
+    (gui as any).title(t('ui.debugPanel.title'));
+
+    // Apply RTL styling 
+    if (isRTL) {
+      const guiElement = gui.domElement as HTMLElement;
+      guiElement.style.direction = 'rtl';
+      guiElement.style.textAlign = 'right';
+    }
+
     // PLAYER SETTINGS FOLDER
-    const playerFolder = gui.addFolder('Player'); 
-    playerFolder.add(PLAYER_CONFIG, 'moveSpeed', 5, 30, 1).name('Move Speed');
-    playerFolder.add(PLAYER_CONFIG, 'jumpForce', 1, 15, 0.5).name('Jump Force');
-    playerFolder.add(PLAYER_CONFIG, 'sprintMultiplier', 1, 3, 0.1).name('Sprint Multiplier');
-    playerFolder.add(PLAYER_CONFIG, 'mouseSensitivity', 0.1, 2, 0.05).name('Mouse Sensitivity');
+    const playerFolder = gui.addFolder(t('ui.debugPanel.player.title')); 
+    playerFolder.add(PLAYER_CONFIG, 'moveSpeed', 5, 30, 1)
+      .name(t('ui.debugPanel.player.moveSpeed'));
+    playerFolder.add(PLAYER_CONFIG, 'jumpForce', 1, 15, 0.5)
+      .name(t('ui.debugPanel.player.jumpForce'));
+    playerFolder.add(PLAYER_CONFIG, 'sprintMultiplier', 1, 3, 0.1)
+      .name(t('ui.debugPanel.player.sprintMultiplier'));
+    playerFolder.add(PLAYER_CONFIG, 'mouseSensitivity', 0.1, 2, 0.05)
+      .name(t('ui.debugPanel.player.mouseSensitivity'));
     playerFolder.close();
 
     // ========================================================================
     // INVENTORY & MONEY FOLDER
     // ========================================================================
-    const inventoryFolder = gui.addFolder('💰 Inventory');
+    const inventoryFolder = gui.addFolder(t('ui.debugPanel.inventory.title'));
     
     // Money state object for GUI
     const inventoryState = { money: money };
     
     // Money slider with live updates
     inventoryFolder.add(inventoryState, 'money', 0, 10000, 1)
-      .name('Money')
-      .listen() // Auto-update display
+      .name(t('ui.debugPanel.inventory.money'))
+      .listen()
       .onChange((value: number) => {
         setMoney(value);
       });
@@ -91,9 +103,9 @@ export function DebugGUI() {
     };
     
     // Add action buttons
-    inventoryFolder.add(quickMoneyActions, 'add100').name('+100');
-    inventoryFolder.add(quickMoneyActions, 'add1000').name('+1000');
-    inventoryFolder.add(quickMoneyActions, 'reset').name('Reset (100)');
+    inventoryFolder.add(quickMoneyActions, 'add100').name(t('ui.debugPanel.inventory.add100'));
+    inventoryFolder.add(quickMoneyActions, 'add1000').name(t('ui.debugPanel.inventory.add1000'));
+    inventoryFolder.add(quickMoneyActions, 'reset').name(t('ui.debugPanel.inventory.reset'));
     
     // Live money updates from store
     const updateMoney = () => {
@@ -107,15 +119,17 @@ export function DebugGUI() {
     // ========================================================================
     // PHYSICS SETTINGS FOLDER
     // ========================================================================
-    const physicsFolder = gui.addFolder('Physics');
-    physicsFolder.add(PHYSICS_CONFIG, 'gravity', -50, 0, 1).name('Gravity');
-    physicsFolder.add(PHYSICS_CONFIG, 'groundFriction', 0, 1, 0.1).name('Ground Friction');
+    const physicsFolder = gui.addFolder(t('ui.debugPanel.physics.title'));
+    physicsFolder.add(PHYSICS_CONFIG, 'gravity', -50, 0, 1)
+      .name(t('ui.debugPanel.physics.gravity'));
+    physicsFolder.add(PHYSICS_CONFIG, 'groundFriction', 0, 1, 0.1)
+      .name(t('ui.debugPanel.physics.groundFriction'));
     physicsFolder.close();
 
     // ========================================================================
     // CAMERA POSITION MONITOR FOLDER
     // ========================================================================
-    const cameraFolder = gui.addFolder('Camera Position');
+    const cameraFolder = gui.addFolder(t('ui.debugPanel.camera.title'));
     const cameraPos = { x: 0, y: 0, z: 0 };
     
     // Read-only position displays
@@ -137,14 +151,14 @@ export function DebugGUI() {
     // ========================================================================
     // ROOM NAVIGATION FOLDER
     // ========================================================================
-    const roomFolder = gui.addFolder('Rooms');
+    const roomFolder = gui.addFolder(t('ui.debugPanel.rooms.title'));
     const roomOptions: { room: RoomType } = {
       room: currentRoom,
     };
     
-    // Room selector dropdown
+    // Room selector dropdown using existing room names from your JSON
     roomFolder.add(roomOptions, 'room', ['main', 'minigame1', 'minigame2', 'minigame3', 'minigame4'])
-      .name('Current Room')
+      .name(t('ui.debugPanel.rooms.currentRoom'))
       .onChange((value: RoomType) => {
         setCurrentRoom(value);
       });
@@ -154,14 +168,14 @@ export function DebugGUI() {
     // ========================================================================
     // THEME SETTINGS FOLDER
     // ========================================================================
-    const themeFolder = gui.addFolder('Theme');
+    const themeFolder = gui.addFolder(t('ui.debugPanel.theme.title'));
     const themeState = { darkMode: isDarkMode };
     themeStateRef.current = themeState;
     
     // Theme toggle switch
     themeFolder.add(themeState, 'darkMode')
-      .name('Dark Mode')
-      .listen() // Auto-update display
+      .name(t('ui.debugPanel.theme.darkMode'))
+      .listen()
       .onChange((value: boolean) => {
         if (value !== isDarkMode) {
           toggleTheme();
@@ -173,14 +187,14 @@ export function DebugGUI() {
     // ========================================================================
     // LANGUAGE SETTINGS FOLDER
     // ========================================================================
-    const languageFolder = gui.addFolder('🌐 Language / 语言 / اللغة');
+    const languageFolder = gui.addFolder(t('ui.debugPanel.language.title'));
     const languageState = { language: language };
     
     // Language selector dropdown
     languageFolder.add(languageState, 'language', ['en', 'zh', 'ar'])
-      .name('Language')
+      .name(t('ui.debugPanel.language.select'))
       .listen()
-      .onChange(async (value: Language) => {
+      .onChange(async (value: 'en' | 'zh' | 'ar') => {
         if (value !== language) {
           await setLanguage(value);
         }
@@ -191,21 +205,21 @@ export function DebugGUI() {
     // ========================================================================
     // SAVE SYSTEM FOLDER
     // ========================================================================
-    const saveFolder = gui.addFolder('💾 Save System');
+    const saveFolder = gui.addFolder(t('ui.debugPanel.saveSystem.title'));
     
     // Auto-save settings
     const saveSettings = {
       autoSave: autoSaveEnabled,
       autoSaveInterval: autoSaveInterval,
-      currentSave: currentSaveId || 'None',
+      currentSave: currentSaveId || t('ui.debugPanel.saveSystem.none'),
       playerPosition: playerTeleportTarget 
         ? `${playerTeleportTarget.x.toFixed(1)}, ${playerTeleportTarget.y.toFixed(1)}, ${playerTeleportTarget.z.toFixed(1)}`
-        : 'No position',
+        : t('ui.debugPanel.saveSystem.noPosition'),
     };
     
     // Auto-save toggle
     saveFolder.add(saveSettings, 'autoSave')
-      .name('Auto-save')
+      .name(t('ui.debugPanel.saveSystem.autoSave'))
       .listen()
       .onChange((value: boolean) => {
         if (value !== autoSaveEnabled) {
@@ -215,7 +229,7 @@ export function DebugGUI() {
     
     // Auto-save interval slider
     saveFolder.add(saveSettings, 'autoSaveInterval', 30, 3600, 30)
-      .name('Auto-save Interval (s)')
+      .name(t('ui.debugPanel.saveSystem.autoSaveInterval'))
       .listen()
       .onChange((value: number) => {
         setAutoSaveInterval(value);
@@ -223,13 +237,13 @@ export function DebugGUI() {
     
     // Current save display (read-only)
     saveFolder.add(saveSettings, 'currentSave')
-      .name('Current Save')
+      .name(t('ui.debugPanel.saveSystem.currentSave'))
       .listen()
       .disable();
     
     // Player position display (read-only)
     saveFolder.add(saveSettings, 'playerPosition')
-      .name('Player Position')
+      .name(t('ui.debugPanel.saveSystem.playerPosition'))
       .listen()
       .disable();
     
@@ -246,7 +260,7 @@ export function DebugGUI() {
         if (saveId) {
           saveSettings.currentSave = saveId;
           refreshSaveList();
-          console.log('Quick save successful');
+          console.log(t('ui.debugPanel.saveSystem.quickSaveSuccess'));
         }
       },
       quickLoad: () => {
@@ -254,11 +268,11 @@ export function DebugGUI() {
         const lastQuickSaveId = localStorage.getItem('mini3d_last_quicksave');
         if (lastQuickSaveId) {
           if (loadGame(lastQuickSaveId)) {
-            saveSettings.currentSave = currentSaveId || 'Loaded';
-            console.log('Quick load successful');
+            saveSettings.currentSave = currentSaveId || t('ui.debugPanel.saveSystem.loaded');
+            console.log(t('ui.debugPanel.saveSystem.quickLoadSuccess'));
           }
         } else {
-          console.log('No quick save found');
+          console.log(t('ui.debugPanel.saveSystem.noQuickSave'));
         }
       },
       manualSave: () => {
@@ -267,7 +281,7 @@ export function DebugGUI() {
           y: 1.8, 
           z: camera.position.z 
         };
-        const saveName = prompt('Save name (optional):') || undefined;
+        const saveName = prompt(t('ui.debugPanel.saveSystem.savePrompt')) || undefined;
         const saveId = saveGame(position, 'manual', saveName);
         if (saveId) {
           saveSettings.currentSave = saveId;
@@ -278,20 +292,25 @@ export function DebugGUI() {
         refreshSaveList();
       },
       clearAll: () => {
-        if (confirm('Are you sure you want to delete ALL save files?')) {
+        if (confirm(t('ui.debugPanel.saveSystem.clearConfirm'))) {
           clearAllSaves();
-          saveSettings.currentSave = 'None';
+          saveSettings.currentSave = t('ui.debugPanel.saveSystem.none');
           refreshSaveList();
-          console.log('All saves cleared');
+          console.log(t('ui.debugPanel.saveSystem.allCleared'));
         }
       },
     };
     
-    saveFolder.add(saveActions, 'quickSave').name('Quick Save (F5)');
-    saveFolder.add(saveActions, 'quickLoad').name('Quick Load (F9)');
-    saveFolder.add(saveActions, 'manualSave').name('Manual Save');
-    saveFolder.add(saveActions, 'refreshSaves').name('Refresh List');
-    saveFolder.add(saveActions, 'clearAll').name('⚠️ Clear All Saves');
+    saveFolder.add(saveActions, 'quickSave')
+      .name(t('ui.debugPanel.saveSystem.quickSave'));
+    saveFolder.add(saveActions, 'quickLoad')
+      .name(t('ui.debugPanel.saveSystem.quickLoad'));
+    saveFolder.add(saveActions, 'manualSave')
+      .name(t('ui.debugPanel.saveSystem.manualSave'));
+    saveFolder.add(saveActions, 'refreshSaves')
+      .name(t('ui.debugPanel.saveSystem.refreshList'));
+    saveFolder.add(saveActions, 'clearAll')
+      .name(t('ui.debugPanel.saveSystem.clearAll'));
     
     // Create initial save list folder
     createSaveListFolder();
@@ -300,9 +319,7 @@ export function DebugGUI() {
     function createSaveListFolder() {
       // Remove existing save list folder if it exists
       if (saveListFolderRef.current) {
-        // We can't remove folders directly, so we'll hide it
         saveListFolderRef.current.hide();
-        // Remove from parent's folders array
         const parent = saveListFolderRef.current.parent;
         if (parent && parent.folders) {
           const index = parent.folders.indexOf(saveListFolderRef.current);
@@ -313,7 +330,7 @@ export function DebugGUI() {
       }
       
       // Create new save list folder
-      saveListFolderRef.current = saveFolder.addFolder('Save Slots');
+      saveListFolderRef.current = saveFolder.addFolder(t('ui.debugPanel.saveSystem.saveSlots'));
       saveListFolderRef.current.open();
       
       // Populate with current saves
@@ -322,12 +339,14 @@ export function DebugGUI() {
       
       if (slots.length === 0) {
         // Create a simple message if no saves
-        const messageObj = { message: 'No save files' };
+        const messageObj = { message: t('ui.debugPanel.saveSystem.noSaves') };
         saveListFolderRef.current.add(messageObj, 'message').disable();
       } else {
         slots.forEach((slot, index) => {
           // Create a sub-folder for each save slot
-          const slotFolder = saveListFolderRef.current.addFolder(`Save ${index + 1}: ${slot.name}`);
+          const slotFolder = saveListFolderRef.current.addFolder(
+            `${t('ui.debugPanel.saveSystem.save')} ${index + 1}: ${slot.name}`
+          );
           
           const slotObj = {
             name: slot.name,
@@ -335,13 +354,13 @@ export function DebugGUI() {
             load: () => {
               if (loadGame(slot.id)) {
                 saveSettings.currentSave = slot.id;
-                console.log(`Loaded save: ${slot.name}`);
+                console.log(t('ui.debugPanel.saveSystem.loadedSave', { name: slot.name }));
               }
             },
             delete: () => {
-              if (confirm(`Delete save "${slot.name}"?`)) {
+              if (confirm(t('ui.debugPanel.saveSystem.deleteConfirm', { name: slot.name }))) {
                 deleteSave(slot.id);
-                // Recreate the save list after a short delay
+                // Recreate the save list
                 setTimeout(() => {
                   createSaveListFolder();
                 }, 100);
@@ -351,8 +370,8 @@ export function DebugGUI() {
           
           slotFolder.add(slotObj, 'name').disable();
           slotFolder.add(slotObj, 'timestamp').disable();
-          slotFolder.add(slotObj, 'load').name('Load This Save');
-          slotFolder.add(slotObj, 'delete').name('Delete This Save');
+          slotFolder.add(slotObj, 'load').name(t('ui.debugPanel.saveSystem.loadThisSave'));
+          slotFolder.add(slotObj, 'delete').name(t('ui.debugPanel.saveSystem.deleteThisSave'));
           slotFolder.close();
         });
       }
@@ -369,7 +388,7 @@ export function DebugGUI() {
       }
       
       // Update current save display
-      saveSettings.currentSave = currentSaveId || 'None';
+      saveSettings.currentSave = currentSaveId || t('ui.debugPanel.saveSystem.none');
       
       // Update player position display
       const storeState = useGameStore.getState();
@@ -409,10 +428,13 @@ export function DebugGUI() {
       themeStateRef.current = null;
       saveListFolderRef.current = null;
     };
-  }, [camera, currentRoom, setCurrentRoom, money, setMoney, toggleTheme, isDarkMode, 
-    autoSaveEnabled, autoSaveInterval, clearAllSaves, currentSaveId, deleteSave, 
-    listSaves, loadGame, playerTeleportTarget, saveGame, setAutoSaveInterval, toggleAutoSave,
-    language, setLanguage]);
+  }, [
+    camera, currentRoom, setCurrentRoom, money, setMoney, toggleTheme, 
+    isDarkMode, autoSaveEnabled, autoSaveInterval, clearAllSaves, 
+    currentSaveId, deleteSave, listSaves, loadGame, playerTeleportTarget, 
+    saveGame, setAutoSaveInterval, toggleAutoSave, language, setLanguage, 
+    t, isRTL
+  ]);
 
   // Update theme state in GUI when theme changes
   useEffect(() => {
@@ -420,6 +442,13 @@ export function DebugGUI() {
       themeStateRef.current.darkMode = isDarkMode;
     }
   }, [isDarkMode]);
+
+  // Update GUI title when language changes
+  useEffect(() => {
+    if (guiRef.current) {
+      (guiRef.current as any).title(t('ui.debugPanel.title'));
+    }
+  }, [language, t]);
 
   // RENDER
   return null; 

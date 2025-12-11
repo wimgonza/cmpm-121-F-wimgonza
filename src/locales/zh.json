@@ -63,6 +63,79 @@
       "message": "恭喜！您已玩过所有迷你游戏！",
       "finalMoney": "最终资金：",
       "restart": "重新开始游戏"
+    },
+    "debugPanel": {
+      "title": "🎮 调试面板",
+      "player": {
+        "title": "玩家",
+        "moveSpeed": "移动速度",
+        "jumpForce": "跳跃力量",
+        "sprintMultiplier": "冲刺倍数",
+        "mouseSensitivity": "鼠标灵敏度"
+      },
+      "inventory": {
+        "title": "💰 物品栏",
+        "money": "金钱",
+        "add100": "+100",
+        "add1000": "+1000",
+        "reset": "重置(100)"
+      },
+      "physics": {
+        "title": "物理",
+        "gravity": "重力",
+        "groundFriction": "地面摩擦"
+      },
+      "camera": {
+        "title": "相机位置"
+      },
+      "rooms": {
+        "title": "房间",
+        "currentRoom": "当前房间",
+        "main": "主房间",
+        "minigame1": "迷你游戏 1",
+        "minigame2": "迷你游戏 2",
+        "minigame3": "迷你游戏 3",
+        "minigame4": "迷你游戏 4"
+      },
+      "theme": {
+        "title": "主题",
+        "darkMode": "深色模式"
+      },
+      "language": {
+        "title": "🌐 语言",
+        "select": "语言",
+        "english": "英文",
+        "chinese": "中文",
+        "arabic": "阿拉伯文"
+      },
+      "saveSystem": {
+        "title": "💾 保存系统",
+        "autoSave": "自动保存",
+        "autoSaveInterval": "自动保存间隔(秒)",
+        "currentSave": "当前保存",
+        "playerPosition": "玩家位置",
+        "none": "无",
+        "noPosition": "无位置",
+        "loaded": "已加载",
+        "quickSave": "快速保存 (F5)",
+        "quickLoad": "快速加载 (F9)",
+        "manualSave": "手动保存",
+        "refreshList": "刷新列表",
+        "clearAll": "⚠️ 清除所有保存",
+        "saveSlots": "保存槽位",
+        "save": "保存",
+        "noSaves": "无保存文件",
+        "loadThisSave": "加载此保存",
+        "deleteThisSave": "删除此保存",
+        "quickSaveSuccess": "快速保存成功",
+        "quickLoadSuccess": "快速加载成功",
+        "noQuickSave": "未找到快速保存",
+        "savePrompt": "保存名称(可选):",
+        "clearConfirm": "确定要删除所有保存文件吗？",
+        "allCleared": "所有保存已清除",
+        "loadedSave": "已加载保存: {name}",
+        "deleteConfirm": "删除保存 \"{name}\"吗？"
+      }
     }
   }
 }
