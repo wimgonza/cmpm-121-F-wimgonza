@@ -7,6 +7,17 @@ import { useGameStore } from '../hooks/useGameStore';
 import { PLAYER_CONFIG, ROOM_CONFIGS, PORTAL_CONFIG } from '../config/rooms';
 
 // ============================================================================
+// FIXED STAMINA CONFIG (NO REGEN)
+// ============================================================================
+const STAMINA_CONFIG = {
+  maxStamina: 100,
+  drainPerStep: 0.5,
+  sprintMultiplier: 2.5,
+  jumpCost: 12,
+  minStaminaToMove: 0.1,
+};
+
+// ============================================================================
 // TYPES & INTERFACES
 // ============================================================================
 interface PlayerProps {
@@ -37,6 +48,11 @@ export function Player({ playerBody, physicsStep }: PlayerProps) {
   // MOVEMENT STATE
   const velocityRef = useRef(new THREE.Vector3());
   const canJumpRef = useRef(true);
+
+  // STAMINA & STEP TRACKING (NON-REGENERATING)
+  const staminaRef = useRef(STAMINA_CONFIG.maxStamina);
+  const stepAccumulatorRef = useRef(0);
+  const stepsRef = useRef(0);
 
   // DEBUG TRACKING STATE
   const debugRef = useRef<DebugState>({
@@ -265,9 +281,21 @@ export function Player({ playerBody, physicsStep }: PlayerProps) {
       -Math.sin(yawRef.current)
     );
 
-    const speed = keys.current.sprint 
-      ? PLAYER_CONFIG.moveSpeed * PLAYER_CONFIG.sprintMultiplier 
-      : PLAYER_CONFIG.moveSpeed;
+    const isMoving =
+      keys.current.forward ||
+      keys.current.backward ||
+      keys.current.left ||
+      keys.current.right;
+
+    const isSprinting = keys.current.sprint && isMoving;
+
+    const canMove = staminaRef.current > STAMINA_CONFIG.minStaminaToMove;
+
+    let speed = canMove
+      ? isSprinting
+        ? PLAYER_CONFIG.moveSpeed * PLAYER_CONFIG.sprintMultiplier
+        : PLAYER_CONFIG.moveSpeed
+      : 0;
 
     const velocity = velocityRef.current;
     velocity.set(0, 0, 0);
@@ -282,14 +310,55 @@ export function Player({ playerBody, physicsStep }: PlayerProps) {
     const currentYVelocity = body.velocity.y;
     body.velocity.set(velocity.x, currentYVelocity, velocity.z);
 
-    // JUMP MECHANICS
-    // ------------------------------------------------------------------------
+
     const isGrounded =
       Math.abs(body.velocity.y) < 0.5 &&
       body.position.y <= PLAYER_CONFIG.spawnHeight + 0.2;
 
-    if (keys.current.jump && isGrounded && canJumpRef.current && !isBasketballActive) {
-      body.velocity.set(body.velocity.x, PLAYER_CONFIG.jumpForce, body.velocity.z);
+    
+    // ======================================================================
+    // PERMANENT STEP-BASED STAMINA CONSUMPTION (NO REGEN)
+    // ======================================================================
+    if (isMoving && isGrounded && canMove) {
+      const stepRate = isSprinting ? 2.2 : 1.0;
+
+      stepAccumulatorRef.current += delta * stepRate;
+
+      if (stepAccumulatorRef.current >= 0.4) {
+        stepAccumulatorRef.current = 0;
+        stepsRef.current++;
+        
+        const drain =
+          STAMINA_CONFIG.drainPerStep *
+          (isSprinting ? STAMINA_CONFIG.sprintMultiplier : 1);
+        
+        staminaRef.current = Math.max (
+          0,
+          staminaRef.current - drain
+        );
+      }
+    }
+
+    // JUMP MECHANICS
+    // ------------------------------------------------------------------------
+    if (
+      keys.current.jump &&
+      isGrounded &&
+      canJumpRef.current &&
+      !isBasketballActive &&
+      staminaRef.current > STAMINA_CONFIG.jumpCost
+    ) {
+      body.velocity.set(
+        body.velocity.x,
+        PLAYER_CONFIG.jumpForce,
+        body.velocity.z
+      );
+
+      staminaRef.current = Math.max(
+        0,
+        staminaRef.current - STAMINA_CONFIG.jumpCost
+      );
+
       canJumpRef.current = false;
     }
     if (!keys.current.jump) {
@@ -382,6 +451,8 @@ export function Player({ playerBody, physicsStep }: PlayerProps) {
       
       teleportToRoom(nearPortal.targetRoom);
     }
+    // Final clamp for safety
+    staminaRef.current = Math.max(0, staminaRef.current);
   });
 
   // RENDER
